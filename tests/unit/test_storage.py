@@ -2,6 +2,7 @@ import shutil
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -101,6 +102,41 @@ def test_success_cleanup_keeps_only_zip(tmp_path: Path) -> None:
     assert not paths.intermediate.exists()
     assert tuple(paths.output.iterdir()) == (archive,)
     assert archive.read_bytes() == b"zip"
+
+
+def test_cleanup_inputs_can_retry_after_partial_rmtree_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = JobStorage(tmp_path)
+    paths = storage.create("20260704_080000_ab12")
+    (paths.uploads / "source.pdf").write_bytes(b"source")
+    (paths.intermediate / "part.pdf").write_bytes(b"part")
+    archive = paths.output / "output.zip"
+    archive.write_bytes(b"zip")
+    real_rmtree = shutil.rmtree
+    failed_once = False
+
+    def flaky_rmtree(path: Path) -> None:
+        nonlocal failed_once
+        if Path(path) == paths.intermediate and not failed_once:
+            failed_once = True
+            raise OSError("injected intermediate cleanup failure")
+        real_rmtree(path)
+
+    monkeypatch.setattr(shutil, "rmtree", flaky_rmtree)
+
+    with pytest.raises(OSError, match="injected"):
+        storage.cleanup_inputs("20260704_080000_ab12", archive)
+
+    assert not paths.uploads.exists()
+    assert paths.intermediate.is_dir()
+
+    storage.cleanup_inputs("20260704_080000_ab12", archive)
+
+    assert not paths.uploads.exists()
+    assert not paths.intermediate.exists()
+    assert tuple(paths.output.iterdir()) == (archive,)
 
 
 def test_cleanup_inputs_removes_nested_output_directories(tmp_path: Path) -> None:
@@ -222,6 +258,30 @@ def test_expired_results_remove_only_old_jobs(tmp_path: Path) -> None:
     assert removed == ("20260704_080000_ab12",)
     assert not old_paths.root.exists()
     assert new_paths.root.is_dir()
+
+
+def test_cleanup_expired_compares_dst_fold_datetimes_by_absolute_time(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path)
+    paths = storage.create("20261101_013000_ab12")
+    new_york = ZoneInfo("America/New_York")
+    completed = datetime(2026, 11, 1, 1, 50, tzinfo=new_york, fold=0)
+    now = datetime(2026, 11, 1, 1, 30, tzinfo=new_york, fold=1)
+
+    removed = storage.cleanup_expired(
+        {"20261101_013000_ab12": completed},
+        timedelta(minutes=30),
+        now=now,
+    )
+
+    assert removed == ("20261101_013000_ab12",)
+    assert not paths.root.exists()
+
+
+def test_cleanup_expired_rejects_negative_retention(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path)
+
+    with pytest.raises(ValueError, match="retention"):
+        storage.cleanup_expired({}, timedelta(seconds=-1))
 
 
 @pytest.mark.parametrize(

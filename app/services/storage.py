@@ -66,11 +66,16 @@ class JobStorage:
             ("intermediate", paths.intermediate),
             ("output", paths.output),
         ):
+            if path.is_symlink():
+                raise ValueError(f"{name} must be a physical job directory")
+            if not path.exists():
+                if name == "output":
+                    raise ValueError("output must be a physical job directory")
+                continue
             expected = physical_root / name
             resolved = path.resolve()
             if (
-                path.is_symlink()
-                or resolved != expected
+                resolved != expected
                 or resolved.parent != physical_root
                 or not path.is_dir()
             ):
@@ -89,8 +94,10 @@ class JobStorage:
         if not resolved_archive.is_file():
             raise FileNotFoundError(resolved_archive)
 
-        shutil.rmtree(paths.uploads)
-        shutil.rmtree(paths.intermediate)
+        if paths.uploads.exists():
+            shutil.rmtree(paths.uploads)
+        if paths.intermediate.exists():
+            shutil.rmtree(paths.intermediate)
         for child in paths.output.iterdir():
             if child == archive:
                 continue
@@ -113,14 +120,17 @@ class JobStorage:
         retention: timedelta,
         now: datetime | None = None,
     ) -> tuple[str, ...]:
+        if retention < timedelta(0):
+            raise ValueError("retention must not be negative")
         current = now or datetime.now(UTC)
         timestamps = (current, *completed_at.values())
         if any(timestamp.utcoffset() is None for timestamp in timestamps):
             raise ValueError("cleanup timestamps must be timezone-aware")
 
+        current_utc = current.astimezone(UTC)
         removed: list[str] = []
         for job_id, timestamp in completed_at.items():
-            if current - timestamp > retention:
+            if current_utc - timestamp.astimezone(UTC) > retention:
                 self.cleanup(job_id)
                 removed.append(job_id)
         return tuple(removed)
