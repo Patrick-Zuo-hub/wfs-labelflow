@@ -15,7 +15,21 @@ def _write(writer: PdfWriter, output: Path) -> None:
 
 
 def _check_page_count(output: Path, expected: int, rule: str, repair: str) -> None:
-    actual = len(PdfReader(output).pages)
+    try:
+        actual = len(PdfReader(output).pages)
+    except Exception as exc:  # pragma: no cover - exercised through higher-level test
+        raise ProcessingError(
+            (
+                ValidationIssue(
+                    Severity.STRONG,
+                    f"{rule}_readback",
+                    f"{output.name} 回读校验失败",
+                    repair,
+                    filename=output.name,
+                    actual=str(exc),
+                ),
+            )
+        ) from exc
     if actual != expected:
         raise ProcessingError(
             (
