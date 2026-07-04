@@ -2,10 +2,10 @@
 
 ## Snapshot
 
-- Last updated: 2026-07-04 08:08:52 CST +0800
+- Last updated: 2026-07-04 08:20:10 CST +0800
 - Confidence: high for approved design state; low for executable behavior
-- One-line status: MVP design is approved and documented; no application code
-  exists, so implementation planning is the next gated action.
+- One-line status: MVP design and implementation plan are documented; no
+  application code exists, so plan execution is the next gated action.
 
 ## Objective and success criteria
 
@@ -18,11 +18,10 @@
 
 ## Current phase
 
-- Phase: Approved design; awaiting written-spec review before implementation
-  planning.
-- Evidence: The product owner approved the architecture, upload/preview flow,
-  validation model, per-file/group clearing, precise error placement, and
-  successful-round reset during the 2026-07-04 design session.
+- Phase: Implementation plan ready; awaiting execution approach.
+- Evidence: The product owner approved the written design, and
+  `docs/superpowers/plans/2026-07-04-wfs-label-flow-mvp.md` maps the design to
+  14 test-driven tasks and a final acceptance checkpoint.
 
 ## Work status
 
@@ -39,14 +38,14 @@
 - Approved single-file delete, clear-group, clear-all, group-specific errors,
   and full browser/upload reset after successful ZIP verification.
 - Wrote the project map and approved MVP design.
+- Wrote and self-reviewed the complete MVP implementation plan.
 
 ### Active
 
-- Product-owner review of the written design document.
+- Selection of implementation execution approach.
 
 ### Pending
 
-- Create a detailed implementation plan after the written design is approved.
 - Scaffold and implement the application through test-driven increments.
 - Define and approve deterministic production filename classification rules
   before production rollout.
@@ -61,8 +60,8 @@
 
 ## Blockers, risks, and conflicts
 
-- Blockers: Implementation planning is gated on product-owner review of the
-  written spec.
+- Blockers: Application implementation is gated on selection of the execution
+  approach.
 - Risks: Ambiguous filename classification could swap WFS and logistics PDFs;
   the MVP classifier must reject ambiguity and must not guess.
 - Conflicts: None known in the approved MVP design.
@@ -71,9 +70,8 @@
 
 | Priority | Action | Owner or trigger | Evidence |
 | --- | --- | --- | --- |
-| P0 | Review the written MVP design and request changes or approve it | Product owner | Explicit response approving `docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md` |
-| P1 | Write the implementation plan | Codex, after P0 approval | Plan covers every acceptance criterion and validation rule |
-| P1 | Implement the plan using tests and sample fixtures | Codex, after plan approval | Automated tests and rendered PDF inspection pass |
+| P0 | Choose subagent-driven or inline plan execution | Product owner | Explicit execution choice |
+| P1 | Implement the plan using tests and sample fixtures | Codex, after P0 | Automated tests and rendered PDF inspection pass |
 | P2 | Finalize production filename classification | Product owner provides real filenames | Deterministic rules and ambiguity tests are approved |
 
 ## Recent consequential changes
@@ -83,10 +81,13 @@
 - 2026-07-04 — Approved and documented the local monolith architecture,
   all-groups atomicity, read-only preview, precise correction controls, and
   successful-round reset behavior.
+- 2026-07-04 — Created a 14-task test-driven implementation plan on branch
+  `plan/wfs-label-flow-mvp`.
 
 ## Evidence and deeper reading
 
 - [Approved MVP design](docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md)
+- [MVP implementation plan](docs/superpowers/plans/2026-07-04-wfs-label-flow-mvp.md)
 - [Authoritative requirements](wfs_label_processing_requirements.md)
 - [Project map](AGENTS.md)
 - [Sample inputs](Sample%20Label/)
