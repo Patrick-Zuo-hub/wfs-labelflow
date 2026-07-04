@@ -1,9 +1,41 @@
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from types import MappingProxyType
+from typing import Any, TypeAlias
+
+ContextScalar: TypeAlias = str | int | float | bool | None
+ImmutableContext: TypeAlias = (
+    ContextScalar
+    | Mapping[Any, "ImmutableContext"]
+    | tuple["ImmutableContext", ...]
+    | frozenset["ImmutableContext"]
+)
+
+
+def _freeze_context(value: Any) -> ImmutableContext:
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _freeze_context(nested_value) for key, nested_value in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_context(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze_context(item) for item in value)
+    return value
+
+
+def _thaw_context(value: ImmutableContext) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw_context(nested_value) for key, nested_value in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_context(item) for item in value]
+    if isinstance(value, frozenset):
+        return [_thaw_context(item) for item in value]
+    return value
 
 
 class LabelType(StrEnum):
@@ -71,7 +103,7 @@ class ProcessingOptions:
     include_summary: bool = field(default=True, init=False)
 
     def __post_init__(self) -> None:
-        if self.logistics_repeat not in (1, 2):
+        if type(self.logistics_repeat) is not int or self.logistics_repeat not in (1, 2):
             raise ValueError("logistics_repeat must be 1 or 2")
 
 
@@ -87,10 +119,22 @@ class ValidationIssue:
     expected: Any = None
     actual: Any = None
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "expected", _freeze_context(self.expected))
+        object.__setattr__(self, "actual", _freeze_context(self.actual))
+
     def as_dict(self) -> dict[str, Any]:
-        data = asdict(self)
-        data["severity"] = self.severity.value
-        return data
+        return {
+            "severity": self.severity.value,
+            "rule": self.rule,
+            "message": self.message,
+            "repair": self.repair,
+            "group_index": self.group_index,
+            "filename": self.filename,
+            "page": self.page,
+            "expected": _thaw_context(self.expected),
+            "actual": _thaw_context(self.actual),
+        }
 
 
 @dataclass(frozen=True)
