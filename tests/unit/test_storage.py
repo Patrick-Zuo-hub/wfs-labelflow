@@ -28,6 +28,57 @@ def test_job_paths_are_isolated_under_runtime_root(tmp_path: Path) -> None:
     assert paths.output.is_dir()
 
 
+def test_cleanup_rejects_sibling_job_root_symlink_without_deleting_target(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path)
+    aliased = storage.create("20260704_080000_ab12")
+    target = storage.create("20260704_080100_cd34")
+    victim = target.output / "victim.zip"
+    victim.write_bytes(b"victim")
+    shutil.rmtree(aliased.root)
+    aliased.root.symlink_to(target.root, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="job root"):
+        storage.cleanup("20260704_080000_ab12")
+
+    assert victim.read_bytes() == b"victim"
+    assert target.root.is_dir()
+
+
+def test_paths_rejects_sibling_job_root_symlink(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path)
+    aliased = storage.create("20260704_080000_ab12")
+    target = storage.create("20260704_080100_cd34")
+    victim = target.output / "victim.zip"
+    victim.write_bytes(b"victim")
+    shutil.rmtree(aliased.root)
+    aliased.root.symlink_to(target.root, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="job root"):
+        storage.paths("20260704_080000_ab12")
+
+    assert victim.read_bytes() == b"victim"
+
+
+def test_cleanup_expired_rejects_sibling_job_root_symlink(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path)
+    aliased = storage.create("20260704_080000_ab12")
+    target = storage.create("20260704_080100_cd34")
+    victim = target.output / "victim.zip"
+    victim.write_bytes(b"victim")
+    shutil.rmtree(aliased.root)
+    aliased.root.symlink_to(target.root, target_is_directory=True)
+    now = datetime(2026, 7, 4, 9, 0, tzinfo=UTC)
+
+    with pytest.raises(ValueError, match="job root"):
+        storage.cleanup_expired(
+            {"20260704_080000_ab12": now - timedelta(hours=1)},
+            timedelta(minutes=30),
+            now=now,
+        )
+
+    assert victim.read_bytes() == b"victim"
+
+
 def test_cleanup_rejects_path_escape(tmp_path: Path) -> None:
     storage = JobStorage(tmp_path)
 

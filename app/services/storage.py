@@ -25,10 +25,23 @@ class JobStorage:
     def _root_for(self, job_id: str) -> Path:
         if not JOB_ID.fullmatch(job_id):
             raise ValueError("invalid job_id")
-        root = (self.runtime_root / job_id).resolve()
+        root = self.runtime_root / job_id
         if root.parent != self.runtime_root:
             raise ValueError("job path escapes runtime root")
+        self._validate_job_root(root)
         return root
+
+    def _validate_job_root(self, root: Path) -> None:
+        if root.is_symlink():
+            raise ValueError("invalid job root: symlink")
+        if root.exists():
+            resolved = root.resolve()
+            if (
+                not root.is_dir()
+                or resolved.parent != self.runtime_root
+                or resolved != root.absolute()
+            ):
+                raise ValueError("invalid job root")
 
     def create(self, job_id: str) -> JobPaths:
         paths = self.paths(job_id)
@@ -91,6 +104,7 @@ class JobStorage:
     def cleanup(self, job_id: str) -> None:
         root = self._root_for(job_id)
         if root.exists():
+            self._validate_job_root(root)
             shutil.rmtree(root)
 
     def cleanup_expired(
