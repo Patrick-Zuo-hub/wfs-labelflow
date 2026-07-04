@@ -58,6 +58,15 @@ def test_pallet_position_does_not_depend_on_last_page() -> None:
     assert [label.label_type for label in labels] == [LabelType.PALLET, LabelType.BOX]
 
 
+def test_sku_falls_back_to_nearest_field_below_when_same_column_is_missing() -> None:
+    labels = parse_wfs_zpl(
+        "^XA^FO10,10^FDSINGLE SKU:^FS^FO30,25^FDSKU-ALT^FS^XZ",
+        group_index=3,
+    )
+
+    assert labels[0].sku == "SKU-ALT"
+
+
 def test_parse_wfs_zpl_requires_complete_segment_boundaries() -> None:
     sample_text = Path("tests/fixtures/sample/WFS Label-Sample.txt").read_text()
     broken_text = sample_text.rsplit("^XZ", 1)[0]

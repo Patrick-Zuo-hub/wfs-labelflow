@@ -65,7 +65,17 @@ def _find_relative_value(
             for field in fields
             if field.x == marker_field.x and field.y > marker_field.y and field.text
         ]
-        candidates.sort(key=lambda field: (field.y - marker_field.y, field.x))
+        if not candidates:
+            candidates = [
+                field for field in fields if field.y > marker_field.y and field.text
+            ]
+        candidates.sort(
+            key=lambda field: (
+                field.y - marker_field.y,
+                abs(field.x - marker_field.x),
+                field.x,
+            )
+        )
     else:
         candidates = [
             field
