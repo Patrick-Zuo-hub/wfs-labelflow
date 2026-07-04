@@ -27,6 +27,7 @@ def test_parse_wfs_zpl_extracts_sample_metadata() -> None:
     labels = parse_wfs_zpl(sample_text, group_index=1)
 
     assert len(labels) == 4
+    assert [label.pdf_page for label in labels] == [1, 2, 3, 4]
     assert [label.label_type for label in labels] == [
         LabelType.BOX,
         LabelType.BOX,
@@ -47,6 +48,16 @@ def test_parse_wfs_zpl_extracts_sample_metadata() -> None:
     assert labels[3].label_type is LabelType.PALLET
 
 
+def test_pallet_position_does_not_depend_on_last_page() -> None:
+    labels = parse_wfs_zpl(
+        "^XA^FDPALLET^FS^FDSHIPMENT ID BARCODE:^FS^XZ"
+        "^XA^FDSINGLE SKU:^FS^FDSKU-1^FS^FD BOX 1 OF 1^FS^XZ",
+        group_index=2,
+    )
+
+    assert [label.label_type for label in labels] == [LabelType.PALLET, LabelType.BOX]
+
+
 def test_parse_wfs_zpl_requires_complete_segment_boundaries() -> None:
     sample_text = Path("tests/fixtures/sample/WFS Label-Sample.txt").read_text()
     broken_text = sample_text.rsplit("^XZ", 1)[0]
@@ -56,3 +67,9 @@ def test_parse_wfs_zpl_requires_complete_segment_boundaries() -> None:
 
     assert_strong_issue(caught.value, group_index=2, rule="zpl_segment_boundary")
     assert caught.value.issues[0].actual == {"segment_index": 4, "reason": "missing_xz"}
+
+
+def test_unclassifiable_segment_is_unknown() -> None:
+    labels = parse_wfs_zpl("^XA^FDHELLO^FS^XZ", group_index=3)
+
+    assert labels[0].label_type is LabelType.UNKNOWN
