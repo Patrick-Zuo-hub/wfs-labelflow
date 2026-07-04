@@ -158,6 +158,26 @@ def test_validation_issue_rejects_unsupported_context_types(unsupported: object)
         )
 
 
+@pytest.mark.parametrize("field", ["expected", "actual"])
+@pytest.mark.parametrize(
+    "value",
+    [float("nan"), float("inf"), float("-inf")],
+    ids=["nan", "positive-infinity", "negative-infinity"],
+)
+def test_validation_issue_rejects_non_finite_numbers(
+    field: str,
+    value: float,
+) -> None:
+    with pytest.raises(TypeError, match="non-finite float"):
+        ValidationIssue(
+            severity=Severity.STRONG,
+            rule="finite_context_number",
+            message="Context numbers must be finite",
+            repair="Use a finite number.",
+            **{field: value},
+        )
+
+
 def test_validation_issue_serialization_is_json_safe_and_deterministic() -> None:
     issue = ValidationIssue(
         severity=Severity.WEAK,
@@ -187,7 +207,11 @@ def test_validation_issue_serialization_is_json_safe_and_deterministic() -> None
 
     assert first["expected"] == expected_context
     assert first == second
-    assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
+    assert json.dumps(first, sort_keys=True, allow_nan=False) == json.dumps(
+        second,
+        sort_keys=True,
+        allow_nan=False,
+    )
 
 
 def test_job_state_awaiting_confirmation_value() -> None:

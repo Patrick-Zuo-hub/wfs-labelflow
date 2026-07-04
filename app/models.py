@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -16,6 +17,8 @@ ImmutableContext: TypeAlias = (
 
 
 def _freeze_context(value: Any) -> ImmutableContext:
+    if type(value) is float and not math.isfinite(value):
+        raise TypeError("non-finite float is not supported in validation context")
     if type(value) in (type(None), bool, int, float, str):
         return value
     if isinstance(value, Mapping):
