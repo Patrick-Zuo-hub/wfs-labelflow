@@ -1,0 +1,13 @@
+.DS_Store
+.superpowers/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime artifacts
+data/jobs/
+tmp/
+output/
