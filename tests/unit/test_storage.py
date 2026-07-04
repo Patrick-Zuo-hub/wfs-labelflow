@@ -1,3 +1,4 @@
+import shutil
 from dataclasses import FrozenInstanceError
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -63,6 +64,71 @@ def test_cleanup_inputs_removes_nested_output_directories(tmp_path: Path) -> Non
     storage.cleanup_inputs("20260704_080000_ab12", archive)
 
     assert tuple(paths.output.iterdir()) == (archive,)
+
+
+def test_cleanup_inputs_rejects_output_symlink_without_touching_target(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path / "jobs")
+    paths = storage.create("20260704_080000_ab12")
+    paths.output.rmdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    archive = outside / "output.zip"
+    archive.write_bytes(b"zip")
+    victim = outside / "victim.pdf"
+    victim.write_bytes(b"victim")
+    paths.output.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="output"):
+        storage.cleanup_inputs("20260704_080000_ab12", paths.output / archive.name)
+
+    assert archive.read_bytes() == b"zip"
+    assert victim.read_bytes() == b"victim"
+    assert paths.uploads.is_dir()
+    assert paths.intermediate.is_dir()
+
+
+def test_cleanup_inputs_removes_archive_symlink_alias(tmp_path: Path) -> None:
+    storage = JobStorage(tmp_path)
+    paths = storage.create("20260704_080000_ab12")
+    archive = paths.output / "output.zip"
+    archive.write_bytes(b"zip")
+    alias = paths.output / "alias.zip"
+    alias.symlink_to(archive.name)
+
+    storage.cleanup_inputs("20260704_080000_ab12", archive)
+
+    assert tuple(paths.output.iterdir()) == (archive,)
+    assert not alias.exists()
+
+
+@pytest.mark.parametrize("directory_name", ["uploads", "intermediate"])
+def test_cleanup_inputs_rejects_input_directory_symlinks_before_deleting(
+    tmp_path: Path,
+    directory_name: str,
+) -> None:
+    storage = JobStorage(tmp_path / "jobs")
+    paths = storage.create("20260704_080000_ab12")
+    (paths.uploads / "source.pdf").write_bytes(b"source")
+    (paths.intermediate / "part.pdf").write_bytes(b"part")
+    archive = paths.output / "output.zip"
+    archive.write_bytes(b"zip")
+    replaced = getattr(paths, directory_name)
+    shutil.rmtree(replaced)
+    outside = tmp_path / directory_name
+    outside.mkdir()
+    victim = outside / "victim.pdf"
+    victim.write_bytes(b"victim")
+    replaced.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match=directory_name):
+        storage.cleanup_inputs("20260704_080000_ab12", archive)
+
+    assert victim.read_bytes() == b"victim"
+    if directory_name != "uploads":
+        assert (paths.uploads / "source.pdf").read_bytes() == b"source"
+    if directory_name != "intermediate":
+        assert (paths.intermediate / "part.pdf").read_bytes() == b"part"
+    assert archive.read_bytes() == b"zip"
 
 
 def test_cleanup_inputs_rejects_archive_outside_job_output(tmp_path: Path) -> None:

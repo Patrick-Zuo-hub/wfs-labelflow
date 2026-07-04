@@ -47,8 +47,31 @@ class JobStorage:
 
     def cleanup_inputs(self, job_id: str, archive: Path) -> None:
         paths = self.paths(job_id)
+        physical_root = paths.root.resolve()
+        for name, path in (
+            ("uploads", paths.uploads),
+            ("intermediate", paths.intermediate),
+            ("output", paths.output),
+        ):
+            expected = physical_root / name
+            resolved = path.resolve()
+            if (
+                path.is_symlink()
+                or resolved != expected
+                or resolved.parent != physical_root
+                or not path.is_dir()
+            ):
+                raise ValueError(f"{name} must be a physical job directory")
+
+        if archive.parent != paths.output:
+            raise ValueError("archive is outside job output")
+        if archive.is_symlink():
+            raise ValueError("archive must be a regular file, not a symlink")
         resolved_archive = archive.resolve()
-        if resolved_archive.parent != paths.output.resolve():
+        if (
+            resolved_archive.parent != paths.output
+            or resolved_archive != paths.output / archive.name
+        ):
             raise ValueError("archive is outside job output")
         if not resolved_archive.is_file():
             raise FileNotFoundError(resolved_archive)
@@ -56,9 +79,11 @@ class JobStorage:
         shutil.rmtree(paths.uploads)
         shutil.rmtree(paths.intermediate)
         for child in paths.output.iterdir():
-            if child.resolve() == resolved_archive:
+            if child == archive:
                 continue
-            if child.is_dir() and not child.is_symlink():
+            if child.is_symlink():
+                child.unlink()
+            elif child.is_dir():
                 shutil.rmtree(child)
             else:
                 child.unlink()
