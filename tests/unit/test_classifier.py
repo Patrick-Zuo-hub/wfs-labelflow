@@ -73,6 +73,43 @@ def test_pdfs_without_a_unique_wfs_marker_are_rejected(tmp_path: Path) -> None:
     )
 
 
+def test_unique_wfs_keyword_is_used_when_no_pdf_matches_source_stem(
+    tmp_path: Path,
+) -> None:
+    files = [
+        touch(tmp_path / "source.zpl"),
+        touch(tmp_path / "carrier-WfS-label.PDF"),
+        touch(tmp_path / "plain.pdf"),
+    ]
+
+    result = classify_group(9, files)
+
+    assert result.wfs_pdf_path.name == "carrier-WfS-label.PDF"
+    assert result.logistics_pdf_path.name == "plain.pdf"
+
+
+def test_multiple_casefolded_source_stem_matches_are_rejected(tmp_path: Path) -> None:
+    first_dir = tmp_path / "first"
+    second_dir = tmp_path / "second"
+    first_dir.mkdir()
+    second_dir.mkdir()
+    files = [
+        touch(tmp_path / "SOURCE.txt"),
+        touch(first_dir / "Source.PDF"),
+        touch(second_dir / "source.pdf"),
+    ]
+
+    with pytest.raises(ProcessingError) as caught:
+        classify_group(10, files)
+
+    assert_strong_issue(
+        caught.value,
+        group_index=10,
+        rule="file_role_ambiguity",
+        actual=["Source.PDF", "source.pdf"],
+    )
+
+
 def test_unsupported_extensions_are_rejected_case_insensitively(tmp_path: Path) -> None:
     files = [
         touch(tmp_path / "notes.CSV"),
