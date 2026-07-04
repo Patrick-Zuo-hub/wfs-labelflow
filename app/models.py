@@ -10,30 +10,36 @@ from typing import Any, TypeAlias
 ContextScalar: TypeAlias = str | int | float | bool | None
 ImmutableContext: TypeAlias = (
     ContextScalar
-    | Mapping[Any, "ImmutableContext"]
+    | Mapping[str, "ImmutableContext"]
     | tuple["ImmutableContext", ...]
-    | frozenset["ImmutableContext"]
 )
 
 
 def _freeze_context(value: Any) -> ImmutableContext:
+    if type(value) in (type(None), bool, int, float, str):
+        return value
     if isinstance(value, Mapping):
-        return MappingProxyType(
-            {key: _freeze_context(nested_value) for key, nested_value in value.items()}
-        )
+        frozen_mapping: dict[str, ImmutableContext] = {}
+        for key, nested_value in value.items():
+            if type(key) is not str:
+                raise TypeError(
+                    "unsupported validation context type: "
+                    f"mapping key {type(key).__name__}"
+                )
+            frozen_mapping[key] = _freeze_context(nested_value)
+        return MappingProxyType(frozen_mapping)
     if isinstance(value, (list, tuple)):
         return tuple(_freeze_context(item) for item in value)
     if isinstance(value, (set, frozenset)):
-        return frozenset(_freeze_context(item) for item in value)
-    return value
+        frozen_items = (_freeze_context(item) for item in value)
+        return tuple(sorted(frozen_items, key=repr))
+    raise TypeError(f"unsupported validation context type: {type(value).__name__}")
 
 
 def _thaw_context(value: ImmutableContext) -> Any:
     if isinstance(value, Mapping):
         return {key: _thaw_context(nested_value) for key, nested_value in value.items()}
     if isinstance(value, tuple):
-        return [_thaw_context(item) for item in value]
-    if isinstance(value, frozenset):
         return [_thaw_context(item) for item in value]
     return value
 

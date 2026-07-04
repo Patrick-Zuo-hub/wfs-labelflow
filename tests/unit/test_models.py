@@ -123,7 +123,7 @@ def test_validation_issue_context_is_recursively_immutable_and_json_friendly() -
 
     assert issue.expected["pages"] == (1, 2)
     assert issue.expected["alternates"] == (3, 4)
-    assert issue.expected["flags"] == frozenset({5, 6})
+    assert issue.expected["flags"] == (5, 6)
     with pytest.raises(TypeError):
         issue.expected["pages"] = (9,)  # type: ignore[index]
     with pytest.raises(AttributeError):
@@ -132,8 +132,62 @@ def test_validation_issue_context_is_recursively_immutable_and_json_friendly() -
     serialized = issue.as_dict()
     assert serialized["expected"]["pages"] == [1, 2]
     assert serialized["expected"]["alternates"] == [3, 4]
-    assert set(serialized["expected"]["flags"]) == {5, 6}
+    assert serialized["expected"]["flags"] == [5, 6]
     json.dumps(serialized)
+
+
+@pytest.mark.parametrize(
+    "unsupported",
+    [
+        bytearray(b"x"),
+        b"x",
+        object(),
+        {1: "non-string key"},
+        {"nested": [bytearray(b"x")]},
+    ],
+    ids=["bytearray", "bytes", "custom-object", "non-string-key", "nested-bytearray"],
+)
+def test_validation_issue_rejects_unsupported_context_types(unsupported: object) -> None:
+    with pytest.raises(TypeError, match="unsupported validation context type"):
+        ValidationIssue(
+            severity=Severity.STRONG,
+            rule="supported_context",
+            message="Context type is unsupported",
+            repair="Use JSON-compatible values.",
+            expected=unsupported,
+        )
+
+
+def test_validation_issue_serialization_is_json_safe_and_deterministic() -> None:
+    issue = ValidationIssue(
+        severity=Severity.WEAK,
+        rule="deterministic_context",
+        message="Context order must be stable",
+        repair="Use supported values.",
+        expected={
+            "scalars": [None, True, 7, 2.5, "text"],
+            "containers": {
+                "tuple": (3, "three"),
+                "set": {3, 1},
+                "frozenset": frozenset({"z", "a"}),
+            },
+        },
+    )
+    expected_context = {
+        "scalars": [None, True, 7, 2.5, "text"],
+        "containers": {
+            "tuple": [3, "three"],
+            "set": [1, 3],
+            "frozenset": ["a", "z"],
+        },
+    }
+
+    first = issue.as_dict()
+    second = issue.as_dict()
+
+    assert first["expected"] == expected_context
+    assert first == second
+    assert json.dumps(first, sort_keys=True) == json.dumps(second, sort_keys=True)
 
 
 def test_job_state_awaiting_confirmation_value() -> None:
