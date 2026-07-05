@@ -16,6 +16,8 @@ happen on the machine that opens the app.
 
 On macOS, double-click `start.command` to launch the app.
 
+On Windows, double-click `start.bat` to launch the app.
+
 On macOS or Windows, from the repository root:
 
 ```sh
