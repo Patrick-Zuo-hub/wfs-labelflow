@@ -95,7 +95,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             files = [
                 item
                 for item in form.getlist(key)
-                if hasattr(item, "filename") and hasattr(item, "file")
+                if getattr(item, "filename", None)
             ]
             if files:
                 uploads_by_group[int(key.split("_")[1])] = files

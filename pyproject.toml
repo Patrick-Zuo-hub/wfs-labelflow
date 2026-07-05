@@ -14,8 +14,10 @@ dependencies = [
 [dependency-groups]
 dev = [
   "httpx",
+  "playwright>=1.61.0",
   "pytest",
   "pytest-asyncio",
+  "pytest-playwright>=0.8.0",
   "ruff",
 ]
 
