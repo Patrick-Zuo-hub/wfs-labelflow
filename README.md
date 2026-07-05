@@ -14,6 +14,8 @@ happen on the machine that opens the app.
 
 ## Quick Start
 
+On macOS, double-click `start.command` to launch the app.
+
 On macOS or Windows, from the repository root:
 
 ```sh
