@@ -2,13 +2,13 @@
 
 ## Snapshot
 
-- Last updated: 2026-07-05 02:40:00 CST +0800
+- Last updated: 2026-07-05 11:01:10 CST +0800
 - Confidence: high for sample-verified and test-verified MVP behavior; medium
-  for real production filename classification until representative live
-  filenames are approved.
+  for real production filename classification until the provisional `WFS*`
+  prefix rule is validated against representative live filenames.
 - One-line status: MVP implementation is complete and sample-verified; the
-  remaining gated action is product-owner acceptance on real production
-  filenames and any classification rule refinements they require.
+  remaining gated action is product-owner acceptance on the provisional
+  `WFS*` filename rule and any refinements it requires.
 
 ## Objective and success criteria
 
@@ -21,12 +21,13 @@
 
 ## Current phase
 
-- Phase: Implemented MVP; awaiting product-owner acceptance on representative
-  production filenames.
+- Phase: Implemented MVP; awaiting product-owner acceptance on the provisional
+  `WFS*` filename rule against representative production filenames.
 - Evidence: The browser flow, validation, preview, ZIP generation, upload
   reset, and cleanup behaviors have been implemented and exercised against the
-  bundled sample set. The remaining unknown is the exact deterministic
-  classification rule for real production filenames.
+  bundled sample set. The current deterministic classification rule is
+  provisionally `WFS*`-prefixed filenames for the WFS PDF and ZPL/TXT pair,
+  with the remaining PDF required to be non-`WFS*`.
 
 ## Work status
 
@@ -55,23 +56,24 @@
 
 ### Pending
 
-- Confirm deterministic production filename classification rules with real
-  filenames.
+- Confirm the provisional `WFS*` filename rule against representative live
+  filenames and refine it only if a non-prefix production pattern appears.
 - If the business rules change, update the classifier and acceptance tests.
 - Gather final product-owner acceptance on the implemented MVP.
 
 ### Unknown
 
-- Real production filename patterns are still unknown. Verify with
-  representative filenames and an explicit business rule before relying on
-  automatic classification in production.
+- Real production filename patterns beyond the current `WFS*` prefix rule are
+  still unknown. Verify with representative filenames before relying on any
+  additional automatic classification in production.
 
 ## Blockers, risks, and conflicts
 
 - Blockers: None for the implemented MVP; only the production filename rule is
   still awaiting product-owner confirmation.
 - Risks: Ambiguous filename classification could swap WFS and logistics PDFs;
-  the MVP classifier must reject ambiguity and must not guess.
+  the MVP classifier must reject ambiguity and must not guess. The provisional
+  prefix rule may still need refinement after live filename review.
 - Conflicts: None known in the approved MVP design.
 
 ## Next actions

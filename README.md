@@ -2,7 +2,19 @@
 
 Local single-user tool for validating and assembling WFS and logistics labels.
 
-## Start
+This repository is meant to be cloned and run locally on macOS or Windows
+without any shared backend. All validation, previewing, and ZIP generation
+happen on the machine that opens the app.
+
+## Requirements
+
+- Python 3.11 or newer
+- `uv`
+- A browser for opening the local web app
+
+## Quick Start
+
+On macOS or Windows, from the repository root:
 
 ```sh
 uv sync
@@ -10,6 +22,24 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8788
 ```
 
 Open `http://127.0.0.1:8788`.
+
+If you are on Windows PowerShell, run the same commands there. The server
+listens only on `127.0.0.1`, so other people on the network cannot use it
+unless you change the host binding.
+
+## Required Files
+
+A fresh clone should include these project files and folders:
+
+- `app/`
+- `tests/`
+- `pyproject.toml`
+- `uv.lock`
+- `Sample Label/`
+- `wfs_label_processing_requirements.md`
+
+The sample label folder is useful for verifying the bundled sample workflow,
+and the requirements document explains the operating rules in Chinese.
 
 ## Production workflow
 

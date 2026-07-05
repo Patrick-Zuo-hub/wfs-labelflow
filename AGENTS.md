@@ -29,10 +29,11 @@ At the start of every production or development round:
 ## Repository boundary
 
 The repository root is this directory. The executable MVP lives in the
-`.worktrees/wfs-label-flow-plan/` worktree; this root keeps the project map,
-state, scripts, docs, and sample evidence. Runtime uploads, intermediate PDFs,
-generated output, local virtual environments, caches, and visual brainstorming
-artifacts are not source files and must remain ignored by Git.
+`app/`, `tests/`, `pyproject.toml`, and `uv.lock` files in this root; the
+temporary `.worktrees/` area is only for local development isolation and is not
+part of the public source tree. Runtime uploads, intermediate PDFs, generated
+output, local virtual environments, caches, and visual brainstorming artifacts
+are not source files and must remain ignored by Git.
 
 ## Durable constraints
 
@@ -50,16 +51,16 @@ artifacts are not source files and must remain ignored by Git.
 
 ## Planned entry points
 
-- `.worktrees/wfs-label-flow-plan/app/main.py` — FastAPI application and HTTP
+- `app/main.py` — FastAPI application and HTTP
   routes.
-- `.worktrees/wfs-label-flow-plan/app/services/` — classification, parsing,
+- `app/services/` — classification, parsing,
   validation, pairing, PDF output, job orchestration, and cleanup.
-- `.worktrees/wfs-label-flow-plan/app/models/` — immutable domain records and
+- `app/models.py` — immutable domain records and
   API/view schemas.
-- `.worktrees/wfs-label-flow-plan/app/templates/` and
-  `.worktrees/wfs-label-flow-plan/app/static/` — server-rendered interface and
+- `app/templates/` and
+  `app/static/` — server-rendered interface and
   minimal browser behavior.
-- `.worktrees/wfs-label-flow-plan/tests/` — unit, integration, and end-to-end
+- `tests/` — unit, integration, and end-to-end
   acceptance tests.
 - `scripts/inspect_sample.py` — sample inspection and verified output smoke
   test.
@@ -71,9 +72,9 @@ These paths describe the implemented MVP and its recovery helpers.
 The current baseline is an implemented, sample-verified MVP. Verify it with:
 
 ```sh
-.worktrees/wfs-label-flow-plan/.venv/bin/pytest
-.worktrees/wfs-label-flow-plan/.venv/bin/ruff check app tests
-.worktrees/wfs-label-flow-plan/.venv/bin/python scripts/inspect_sample.py
+uv run pytest
+uv run ruff check app tests
+uv run python scripts/inspect_sample.py
 git diff --check
 ```
 

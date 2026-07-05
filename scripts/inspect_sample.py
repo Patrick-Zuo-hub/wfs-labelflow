@@ -5,9 +5,9 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-WORKTREE_ROOT = Path(__file__).resolve().parent.parent / ".worktrees" / "wfs-label-flow-plan"
-if str(WORKTREE_ROOT) not in sys.path:
-    sys.path.insert(0, str(WORKTREE_ROOT))
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from app.models import ProcessingOptions
 from app.services.job_processor import JobProcessor, UploadedGroup
@@ -15,7 +15,7 @@ from app.services.registry import JobRegistry
 from app.services.storage import JobStorage
 from app.services.zpl_parser import parse_wfs_zpl
 
-SAMPLE = WORKTREE_ROOT / "tests" / "fixtures" / "sample"
+SAMPLE = ROOT / "tests" / "fixtures" / "sample"
 
 
 def main() -> None:
