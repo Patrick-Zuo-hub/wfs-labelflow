@@ -18,7 +18,13 @@ On macOS or Windows, from the repository root:
 
 ```sh
 uv sync
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8788
+make dev
+```
+
+If `make` is not available, use:
+
+```sh
+uv run python app.py
 ```
 
 Open `http://127.0.0.1:8788`.
@@ -26,6 +32,12 @@ Open `http://127.0.0.1:8788`.
 If you are on Windows PowerShell, run the same commands there. The server
 listens only on `127.0.0.1`, so other people on the network cannot use it
 unless you change the host binding.
+
+If you prefer a direct command instead of `make dev`, this also works:
+
+```sh
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8788
+```
 
 ## Required Files
 
