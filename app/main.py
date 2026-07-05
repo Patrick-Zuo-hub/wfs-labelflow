@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -170,6 +171,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         storage.cleanup(job_id)
         registry.remove(job_id)
         return {"ok": True}
+
+    @app.post("/api/maintenance/expire")
+    def expire_results() -> dict[str, list[str]]:
+        expired = registry.expire(storage, resolved.zip_retention, datetime.now(UTC))
+        return {"expired_job_ids": list(expired)}
 
     return app
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from app.models import JobPreview, JobState
-from app.services.storage import JobPaths
+from app.services.storage import JobPaths, JobStorage
 
 
 @dataclass
@@ -31,3 +31,20 @@ class JobRegistry:
 
     def remove(self, job_id: str) -> JobRecord | None:
         return self._jobs.pop(job_id, None)
+
+    def expire(
+        self,
+        storage: JobStorage,
+        retention: timedelta,
+        now: datetime,
+    ) -> tuple[str, ...]:
+        completed = {
+            job_id: record.completed_at
+            for job_id, record in self._jobs.items()
+            if record.completed_at is not None
+        }
+        expired = storage.cleanup_expired(completed, retention, now)
+        for job_id in expired:
+            record = self._jobs.pop(job_id)
+            record.state = JobState.EXPIRED
+        return expired
