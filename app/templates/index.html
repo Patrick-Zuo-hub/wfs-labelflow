@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WFS LabelFlow</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <div>
+          <p class="eyebrow">本机处理 · 文件不外传</p>
+          <h1>WFS LabelFlow</h1>
+          <p class="lede">先校验逐箱关系，再确认生成 ZIP。</p>
+        </div>
+        <button id="clear-all" class="danger" type="button">清空全部上传</button>
+      </header>
+
+      <section id="error-summary" class="notice error" hidden aria-live="assertive"></section>
+
+      <form id="upload-form">
+        <section class="workspace">
+          <div id="groups">
+            {% for group in range(1, 6) %}
+            <article class="group-panel" data-group="{{ group }}">
+              <div class="group-heading">
+                <h2>第 {{ group }} 组</h2>
+                <button class="clear-group ghost" type="button">清空本组</button>
+              </div>
+              <label class="dropzone">
+                <span>拖入或选择 WFS PDF、ZPL/TXT、货代 PDF</span>
+                <input name="group_{{ group }}" type="file" multiple accept=".pdf,.txt,.zpl">
+              </label>
+              <ul class="file-list" aria-label="已选文件"></ul>
+              <div class="group-error notice error" hidden></div>
+            </article>
+            {% endfor %}
+          </div>
+
+          <aside class="sidebar">
+            <h2>处理选项</h2>
+            <p><strong>WFS 标签：</strong>固定 2 份</p>
+            <fieldset>
+              <legend>货代标签份数</legend>
+              <label><input type="radio" name="logistics_repeat" value="1" checked> 1 份</label>
+              <label><input type="radio" name="logistics_repeat" value="2"> 2 份</label>
+            </fieldset>
+            <p>✓ 忽略 Pallet Label</p>
+            <p>✓ 跨组合并相同 SKU</p>
+            <p>✓ 输出 summary.csv</p>
+            <button id="validate-button" type="submit">校验并预览</button>
+          </aside>
+        </section>
+      </form>
+
+      <section id="preview" hidden>
+        <div class="notice success">
+          <strong>强校验通过</strong>，请确认逐箱映射。
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>组</th>
+              <th>箱序</th>
+              <th>WFS 页</th>
+              <th>SKU</th>
+              <th>货代页</th>
+              <th>输出顺序</th>
+            </tr>
+          </thead>
+          <tbody id="preview-rows"></tbody>
+        </table>
+        <div class="actions">
+          <button id="back-button" class="ghost" type="button">返回重新上传</button>
+          <button id="confirm-button" type="button">确认并生成 ZIP</button>
+        </div>
+      </section>
+
+      <section id="result" hidden aria-live="polite">
+        <div class="notice success">
+          <strong>ZIP 已成功生成。</strong>
+          本轮上传和预览已清空，下一轮可安全开始。
+        </div>
+        <a id="download-link" class="button" href="#">下载 ZIP</a>
+      </section>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

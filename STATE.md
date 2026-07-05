@@ -95,10 +95,14 @@
   generated per-SKU PDFs matched the expected sample structure.
 - 2026-07-05 — Ran the complete automated test suite successfully: 99 passed,
   3 warnings.
+- 2026-07-05 — Refreshed the public GitHub onboarding docs, committed the
+  sample evidence set, and recorded the provisional `WFS*` filename rule as a
+  follow-up item.
 
 ## Evidence and deeper reading
 
 - [Approved MVP design](docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md)
+- [Public release plan](docs/superpowers/plans/2026-07-05-wfs-label-flow-public-github.md)
 - [Authoritative requirements](wfs_label_processing_requirements.md)
 - [Project map](AGENTS.md)
 - [Sample inputs](Sample%20Label/)
