@@ -28,7 +28,9 @@ At the start of every production or development round:
 
 ## Repository boundary
 
-The repository root is this directory. Runtime uploads, intermediate PDFs,
+The repository root is this directory. The executable MVP lives in the
+`.worktrees/wfs-label-flow-plan/` worktree; this root keeps the project map,
+state, scripts, docs, and sample evidence. Runtime uploads, intermediate PDFs,
 generated output, local virtual environments, caches, and visual brainstorming
 artifacts are not source files and must remain ignored by Git.
 
@@ -48,27 +50,37 @@ artifacts are not source files and must remain ignored by Git.
 
 ## Planned entry points
 
-- `app/main.py` — FastAPI application and HTTP routes.
-- `app/services/` — classification, parsing, validation, pairing, PDF output,
-  job orchestration, and cleanup.
-- `app/models/` — immutable domain records and API/view schemas.
-- `app/templates/` and `app/static/` — server-rendered interface and minimal
-  browser behavior.
-- `tests/` — unit, integration, and end-to-end acceptance tests.
+- `.worktrees/wfs-label-flow-plan/app/main.py` — FastAPI application and HTTP
+  routes.
+- `.worktrees/wfs-label-flow-plan/app/services/` — classification, parsing,
+  validation, pairing, PDF output, job orchestration, and cleanup.
+- `.worktrees/wfs-label-flow-plan/app/models/` — immutable domain records and
+  API/view schemas.
+- `.worktrees/wfs-label-flow-plan/app/templates/` and
+  `.worktrees/wfs-label-flow-plan/app/static/` — server-rendered interface and
+  minimal browser behavior.
+- `.worktrees/wfs-label-flow-plan/tests/` — unit, integration, and end-to-end
+  acceptance tests.
+- `scripts/inspect_sample.py` — sample inspection and verified output smoke
+  test.
 
-These paths describe the approved design; executable application files do not
-exist yet.
+These paths describe the implemented MVP and its recovery helpers.
 
 ## Verification
 
-The current baseline is documentation-only. Verify it with:
+The current baseline is an implemented, sample-verified MVP. Verify it with:
 
 ```sh
-test -f STATE.md
-test -f docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md
-rg -n "TBD|TODO|implement later|fill in details" \
-  docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md
+.worktrees/wfs-label-flow-plan/.venv/bin/pytest
+.worktrees/wfs-label-flow-plan/.venv/bin/ruff check app tests
+.worktrees/wfs-label-flow-plan/.venv/bin/python scripts/inspect_sample.py
+git diff --check
 ```
+
+Always read `STATE.md` first, then only the evidence needed for the next action.
+
+Latest verified run: 99 tests passed, with 3 warnings from third-party
+dependencies only.
 
 After implementation begins, the implementation plan must define executable
 test and startup commands before they are recorded here as established facts.

@@ -2,10 +2,13 @@
 
 ## Snapshot
 
-- Last updated: 2026-07-04 08:08:52 CST +0800
-- Confidence: high for approved design state; low for executable behavior
-- One-line status: MVP design is approved and documented; no application code
-  exists, so implementation planning is the next gated action.
+- Last updated: 2026-07-05 02:40:00 CST +0800
+- Confidence: high for sample-verified and test-verified MVP behavior; medium
+  for real production filename classification until representative live
+  filenames are approved.
+- One-line status: MVP implementation is complete and sample-verified; the
+  remaining gated action is product-owner acceptance on real production
+  filenames and any classification rule refinements they require.
 
 ## Objective and success criteria
 
@@ -18,11 +21,12 @@
 
 ## Current phase
 
-- Phase: Approved design; awaiting written-spec review before implementation
-  planning.
-- Evidence: The product owner approved the architecture, upload/preview flow,
-  validation model, per-file/group clearing, precise error placement, and
-  successful-round reset during the 2026-07-04 design session.
+- Phase: Implemented MVP; awaiting product-owner acceptance on representative
+  production filenames.
+- Evidence: The browser flow, validation, preview, ZIP generation, upload
+  reset, and cleanup behaviors have been implemented and exercised against the
+  bundled sample set. The remaining unknown is the exact deterministic
+  classification rule for real production filenames.
 
 ## Work status
 
@@ -32,37 +36,40 @@
 - Verified that the sample WFS PDF has 4 pages, the logistics PDF has 3 pages,
   and the ZPL/TXT has 4 complete segments: 3 `SINGLE SKU` segments followed by
   1 `PALLET` segment.
-- Chose a local FastAPI monolith with server-rendered HTML and minimal native
-  JavaScript.
-- Approved an atomic two-step workflow: validate and preview, then explicitly
-  confirm generation.
-- Approved single-file delete, clear-group, clear-all, group-specific errors,
-  and full browser/upload reset after successful ZIP verification.
-- Wrote the project map and approved MVP design.
+- Implemented the local FastAPI monolith with server-rendered HTML and minimal
+  native JavaScript.
+- Implemented the atomic two-step workflow: validate and preview, then
+  explicitly confirm generation.
+- Implemented single-file delete, clear-group, clear-all, group-specific
+  errors, and full browser/upload reset after successful ZIP verification.
+- Implemented ZIP generation with read-back validation and scoped cleanup.
+- Verified the sample end to end by rendering the source PDFs and generated
+  output ZIP contents and checking them visually.
+- Verified the full automated suite in the worktree: 99 tests passed, with 3
+  warnings from third-party dependencies only.
 
 ### Active
 
-- Product-owner review of the written design document.
+- Product-owner review of the implemented MVP against representative production
+  filenames.
 
 ### Pending
 
-- Create a detailed implementation plan after the written design is approved.
-- Scaffold and implement the application through test-driven increments.
-- Define and approve deterministic production filename classification rules
-  before production rollout.
+- Confirm deterministic production filename classification rules with real
+  filenames.
+- If the business rules change, update the classifier and acceptance tests.
+- Gather final product-owner acceptance on the implemented MVP.
 
 ### Unknown
 
-- Real production filename patterns are unknown. Verify with representative
-  filenames and an explicit business rule.
-- PDF rendered-page fidelity is unverified. The environment had `pdfinfo` but
-  not `pdftotext`; implementation verification must render and inspect sample
-  input and generated output.
+- Real production filename patterns are still unknown. Verify with
+  representative filenames and an explicit business rule before relying on
+  automatic classification in production.
 
 ## Blockers, risks, and conflicts
 
-- Blockers: Implementation planning is gated on product-owner review of the
-  written spec.
+- Blockers: None for the implemented MVP; only the production filename rule is
+  still awaiting product-owner confirmation.
 - Risks: Ambiguous filename classification could swap WFS and logistics PDFs;
   the MVP classifier must reject ambiguity and must not guess.
 - Conflicts: None known in the approved MVP design.
@@ -71,18 +78,21 @@
 
 | Priority | Action | Owner or trigger | Evidence |
 | --- | --- | --- | --- |
-| P0 | Review the written MVP design and request changes or approve it | Product owner | Explicit response approving `docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md` |
-| P1 | Write the implementation plan | Codex, after P0 approval | Plan covers every acceptance criterion and validation rule |
-| P1 | Implement the plan using tests and sample fixtures | Codex, after plan approval | Automated tests and rendered PDF inspection pass |
-| P2 | Finalize production filename classification | Product owner provides real filenames | Deterministic rules and ambiguity tests are approved |
+| P0 | Review the implemented MVP with representative production filenames and confirm the classification rule | Product owner | Explicit approval of the filename rule and the current UX |
+| P1 | Update classifier/tests if the production filename rule changes | Codex, after P0 feedback | Acceptance tests and browser flow remain green |
+| P2 | Archive the verified MVP state | Codex after acceptance | `STATE.md` and `AGENTS.md` reflect the accepted operating model |
 
 ## Recent consequential changes
 
 - 2026-07-04 — Established `AGENTS.md` as the project map and mandated
   `STATE.md`-first recovery for every production/development round.
-- 2026-07-04 — Approved and documented the local monolith architecture,
-  all-groups atomicity, read-only preview, precise correction controls, and
-  successful-round reset behavior.
+- 2026-07-04 to 2026-07-05 — Implemented the local monolith architecture,
+  atomic validation/preview, read-only preview, precise correction controls,
+  ZIP verification, browser reset behavior, and safe cleanup.
+- 2026-07-05 — Rendered the bundled sample inputs and visually confirmed the
+  generated per-SKU PDFs matched the expected sample structure.
+- 2026-07-05 — Ran the complete automated test suite successfully: 99 passed,
+  3 warnings.
 
 ## Evidence and deeper reading
 
