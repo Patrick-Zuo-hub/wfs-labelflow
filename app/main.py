@@ -5,7 +5,9 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from app.config import Settings
 from app.errors import ProcessingError
@@ -59,11 +61,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     registry = JobRegistry()
     storage = JobStorage(resolved.runtime_root)
     processor = JobProcessor(storage, registry)
+    app_dir = Path(__file__).resolve().parent
     app = FastAPI(title="WFS LabelFlow")
+    templates = Jinja2Templates(directory=str(app_dir / "templates"))
     app.state.settings = resolved
     app.state.registry = registry
     app.state.storage = storage
     app.state.processor = processor
+    app.mount("/static", StaticFiles(directory=app_dir / "static"), name="static")
+
+    @app.get("/", response_class=HTMLResponse)
+    def index(request: Request) -> HTMLResponse:
+        return templates.TemplateResponse(request=request, name="index.html")
 
     @app.get("/health")
     def health() -> dict[str, str]:
