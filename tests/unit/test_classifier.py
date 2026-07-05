@@ -55,7 +55,7 @@ def test_real_sample_fixtures_classify() -> None:
     assert result.logistics_pdf_path.name == "Logistics Label-Sample.pdf"
 
 
-def test_pdfs_without_a_unique_wfs_marker_are_rejected(tmp_path: Path) -> None:
+def test_non_wfs_source_is_rejected(tmp_path: Path) -> None:
     files = [
         touch(tmp_path / "source.txt"),
         touch(tmp_path / "second.pdf"),
@@ -68,35 +68,29 @@ def test_pdfs_without_a_unique_wfs_marker_are_rejected(tmp_path: Path) -> None:
     assert_strong_issue(
         caught.value,
         group_index=3,
-        rule="file_role_ambiguity",
-        actual=["first.pdf", "second.pdf"],
+        rule="wfs_source_prefix_required",
+        actual=["source.txt"],
     )
 
 
-def test_unique_wfs_keyword_is_used_when_no_pdf_matches_source_stem(
-    tmp_path: Path,
-) -> None:
+def test_wfs_prefix_is_required_for_the_pdf_role(tmp_path: Path) -> None:
     files = [
-        touch(tmp_path / "source.zpl"),
-        touch(tmp_path / "carrier-WfS-label.PDF"),
+        touch(tmp_path / "WFS-source.zpl"),
+        touch(tmp_path / "WFS-carrier.pdf"),
         touch(tmp_path / "plain.pdf"),
     ]
 
     result = classify_group(9, files)
 
-    assert result.wfs_pdf_path.name == "carrier-WfS-label.PDF"
+    assert result.wfs_pdf_path.name == "WFS-carrier.pdf"
     assert result.logistics_pdf_path.name == "plain.pdf"
 
 
-def test_multiple_casefolded_source_stem_matches_are_rejected(tmp_path: Path) -> None:
-    first_dir = tmp_path / "first"
-    second_dir = tmp_path / "second"
-    first_dir.mkdir()
-    second_dir.mkdir()
+def test_multiple_wfs_pdfs_are_rejected(tmp_path: Path) -> None:
     files = [
-        touch(tmp_path / "SOURCE.txt"),
-        touch(first_dir / "Source.PDF"),
-        touch(second_dir / "source.pdf"),
+        touch(tmp_path / "WFS-source.txt"),
+        touch(tmp_path / "WFS-main.pdf"),
+        touch(tmp_path / "wfs-copy.pdf"),
     ]
 
     with pytest.raises(ProcessingError) as caught:
@@ -105,8 +99,8 @@ def test_multiple_casefolded_source_stem_matches_are_rejected(tmp_path: Path) ->
     assert_strong_issue(
         caught.value,
         group_index=10,
-        rule="file_role_ambiguity",
-        actual=["Source.PDF", "source.pdf"],
+        rule="wfs_pdf_prefix_required",
+        actual=["WFS-main.pdf", "wfs-copy.pdf"],
     )
 
 
@@ -153,44 +147,13 @@ def test_missing_or_repeated_required_roles_are_rejected(
 
 def test_supported_extensions_are_case_insensitive(tmp_path: Path) -> None:
     files = [
-        touch(tmp_path / "batch.PDF"),
-        touch(tmp_path / "batch.ZpL"),
+        touch(tmp_path / "WFS-batch.PDF"),
+        touch(tmp_path / "WFS-batch.ZpL"),
         touch(tmp_path / "logistics.PdF"),
     ]
 
     result = classify_group(5, files)
 
-    assert result.wfs_pdf_path.name == "batch.PDF"
-    assert result.wfs_zpl_path.name == "batch.ZpL"
+    assert result.wfs_pdf_path.name == "WFS-batch.PDF"
+    assert result.wfs_zpl_path.name == "WFS-batch.ZpL"
     assert result.logistics_pdf_path.name == "logistics.PdF"
-
-
-def test_exact_source_stem_takes_priority_over_wfs_keyword(tmp_path: Path) -> None:
-    files = [
-        touch(tmp_path / "shipment.txt"),
-        touch(tmp_path / "shipment.pdf"),
-        touch(tmp_path / "WFS-logistics.pdf"),
-    ]
-
-    result = classify_group(6, files)
-
-    assert result.wfs_pdf_path.name == "shipment.pdf"
-    assert result.logistics_pdf_path.name == "WFS-logistics.pdf"
-
-
-def test_multiple_wfs_keyword_candidates_are_rejected(tmp_path: Path) -> None:
-    files = [
-        touch(tmp_path / "source.txt"),
-        touch(tmp_path / "WFS-first.pdf"),
-        touch(tmp_path / "second-wfs.pdf"),
-    ]
-
-    with pytest.raises(ProcessingError) as caught:
-        classify_group(8, files)
-
-    assert_strong_issue(
-        caught.value,
-        group_index=8,
-        rule="file_role_ambiguity",
-        actual=["WFS-first.pdf", "second-wfs.pdf"],
-    )

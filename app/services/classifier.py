@@ -8,6 +8,10 @@ SUPPORTED_SUFFIXES = frozenset({".pdf", ".txt", ".zpl"})
 SOURCE_SUFFIXES = frozenset({".txt", ".zpl"})
 
 
+def _is_wfs(path: Path) -> bool:
+    return path.stem.casefold().startswith("wfs")
+
+
 def _fail(
     group_index: int,
     *,
@@ -55,28 +59,33 @@ def classify_group(group_index: int, files: list[Path]) -> LabelGroupFiles:
         )
 
     source = sources[0]
-    exact_stem_matches = [
-        path for path in pdfs if path.stem.casefold() == source.stem.casefold()
-    ]
-    keyword_matches = [path for path in pdfs if "wfs" in path.name.casefold()]
-    wfs_candidates = exact_stem_matches or keyword_matches
+    if not _is_wfs(source):
+        _fail(
+            group_index,
+            rule="wfs_source_prefix_required",
+            message="WFS 源文件必须以 WFS 开头",
+            repair="请将 ZPL/TXT 文件命名为以 WFS 开头的文件名后重新上传。",
+            filenames=[source.name],
+        )
+
+    wfs_candidates = [path for path in pdfs if _is_wfs(path)]
     if len(wfs_candidates) != 1:
         _fail(
             group_index,
-            rule="file_role_ambiguity",
-            message="无法唯一识别 WFS PDF",
-            repair="请按样例命名文件，或在生产命名规则确定后重新上传。",
+            rule="wfs_pdf_prefix_required",
+            message="WFS PDF 必须以 WFS 开头且只能有一个",
+            repair="请保留一个以 WFS 开头的 PDF 作为 WFS 标签。",
             filenames=[path.name for path in pdfs],
         )
 
     wfs_pdf = wfs_candidates[0]
-    logistics_candidates = [path for path in pdfs if path != wfs_pdf]
+    logistics_candidates = [path for path in pdfs if path != wfs_pdf and not _is_wfs(path)]
     if len(logistics_candidates) != 1:
         _fail(
             group_index,
-            rule="file_role_ambiguity",
-            message="无法唯一识别物流 PDF",
-            repair="请删除重复或角色不明确的 PDF 后重新上传。",
+            rule="logistics_pdf_prefix_required",
+            message="物流 PDF 不能以 WFS 开头",
+            repair="请保留一个不以 WFS 开头的 PDF 作为物流标签。",
             filenames=[path.name for path in pdfs],
         )
 
