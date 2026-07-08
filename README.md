@@ -31,7 +31,7 @@ If `make` is not available, use:
 uv run python app.py
 ```
 
-Open `http://127.0.0.1:8788`.
+Open `http://127.0.0.1:8790`.
 
 If you are on Windows PowerShell, run the same commands there. The server
 listens only on `127.0.0.1`, so other people on the network cannot use it
@@ -40,7 +40,7 @@ unless you change the host binding.
 If you prefer a direct command instead of `make dev`, this also works:
 
 ```sh
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8788
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8790
 ```
 
 ## Required Files

@@ -7,7 +7,7 @@ import uvicorn
 
 def main() -> None:
     host = os.getenv("APP_HOST", "127.0.0.1")
-    port = int(os.getenv("APP_PORT", "8788"))
+    port = int(os.getenv("APP_PORT", "8790"))
     uvicorn.run("app.main:app", host=host, port=port)
 
 

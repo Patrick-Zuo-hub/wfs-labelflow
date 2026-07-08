@@ -80,7 +80,7 @@ Add a Mac/Windows-friendly setup section that includes:
 
 ```sh
 uv sync
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8788
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8790
 ```
 
 and explains the required repository files and folders:
@@ -142,11 +142,10 @@ Create a public repo and add it as `origin`, then push the public branch.
 
 - [ ] **Step 4: Verify the public clone instructions**
 
-Run the documented local startup command from the repository root and confirm the homepage loads on `http://127.0.0.1:8788`.
+Run the documented local startup command from the repository root and confirm the homepage loads on `http://127.0.0.1:8790`.
 
 - [ ] **Step 5: Commit/push publication prep**
 
 ```sh
 git push -u origin master
 ```
-

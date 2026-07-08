@@ -3168,10 +3168,10 @@ Local single-user tool for validating and assembling WFS and logistics labels.
 
 ```sh
 uv sync
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8788
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8790
 ```
 
-Open `http://127.0.0.1:8788`.
+Open `http://127.0.0.1:8790`.
 
 ## Production workflow
 
