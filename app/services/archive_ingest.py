@@ -10,6 +10,16 @@ from app.models import ArchiveEntry, ArchiveInventory, Severity, ValidationIssue
 SUPPORTED_SUFFIXES = {".pdf", ".txt"}
 
 
+def _is_macos_metadata_member(member_name: str) -> bool:
+    path = Path(member_name)
+    return (
+        ".DS_Store" in path.parts
+        or path.name == ".DS_Store"
+        or path.name.startswith("._")
+        or "__MACOSX" in path.parts
+    )
+
+
 def _fail(
     rule: str,
     message: str,
@@ -47,6 +57,8 @@ def parse_zip_archive(path: Path) -> ArchiveInventory:
                     continue
 
                 original = Path(member.filename)
+                if _is_macos_metadata_member(member.filename):
+                    continue
                 name = original.name
                 suffix = original.suffix.casefold()
                 stem = original.stem

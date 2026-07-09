@@ -13,6 +13,9 @@ def test_parse_zip_archive_extracts_members(tmp_path: Path) -> None:
         zipped.writestr("9233758WFA.pdf", b"pdf")
         zipped.writestr("9233758WFA.txt", b"txt")
         zipped.writestr("CD2606260718.pdf", b"carrier")
+        zipped.writestr("__MACOSX/._9233758WFA.pdf", b"noise")
+        zipped.writestr("__MACOSX/._CD2606260718.pdf", b"noise")
+        zipped.writestr(".DS_Store", b"noise")
 
     inventory = parse_zip_archive(archive)
 
@@ -24,6 +27,26 @@ def test_parse_zip_archive_extracts_members(tmp_path: Path) -> None:
         "CD2606260718.pdf",
     }
     assert all(entry.path.is_file() for entry in inventory.entries)
+
+
+def test_parse_zip_archive_ignores_macos_metadata_files(tmp_path: Path) -> None:
+    archive = tmp_path / "labels.zip"
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr("9233758WFA.pdf", b"pdf")
+        zipped.writestr("9233758WFA.txt", b"txt")
+        zipped.writestr("CD2606260718.pdf", b"carrier")
+        zipped.writestr("__MACOSX/._9233758WFA.pdf", b"noise")
+        zipped.writestr("__MACOSX/._9233758WFA.txt", b"noise")
+        zipped.writestr("__MACOSX/._CD2606260718.pdf", b"noise")
+        zipped.writestr(".DS_Store", b"noise")
+
+    inventory = parse_zip_archive(archive)
+
+    assert {entry.name for entry in inventory.entries} == {
+        "9233758WFA.pdf",
+        "9233758WFA.txt",
+        "CD2606260718.pdf",
+    }
 
 
 def test_parse_zip_archive_rejects_duplicate_basenames(tmp_path: Path) -> None:
