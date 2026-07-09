@@ -79,6 +79,28 @@ class LabelGroupFiles:
 
 
 @dataclass(frozen=True)
+class ArchiveEntry:
+    name: str
+    stem: str
+    suffix: str
+    path: Path
+
+
+@dataclass(frozen=True)
+class ArchiveInventory:
+    archive_path: Path
+    extracted_root: Path
+    entries: tuple[ArchiveEntry, ...]
+
+
+@dataclass(frozen=True)
+class CarrierMappingRow:
+    row_number: int
+    carrier_number: str
+    shipment_id: str
+
+
+@dataclass(frozen=True)
 class WfsLabel:
     group_index: int
     zpl_index: int
