@@ -3,6 +3,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from openpyxl import Workbook
 from pypdf import PdfReader
 
 from app.errors import ProcessingError
@@ -82,3 +83,27 @@ def test_generate_rejects_unknown_or_unconfirmed_job(tmp_path: Path) -> None:
 
     with pytest.raises(KeyError):
         processor.generate("20260704_080000_ab12")
+
+
+def test_dispatch_validation_failure_cleans_job_root(tmp_path: Path) -> None:
+    processor = JobProcessor(JobStorage(tmp_path / "jobs"), JobRegistry())
+
+    archive = tmp_path / "labels.zip"
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr("9233758WFA.pdf", b"pdf")
+        zipped.writestr("9233758WFA.txt", b"txt")
+        zipped.writestr("CD2606260718.pdf", b"carrier")
+        zipped.writestr("CD2606260719.pdf", b"carrier")
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Sheet1"
+    sheet.append(["货代单号", "WFS Shipment ID"])
+    sheet.append(["CD2606260718", "9233758WFA"])
+    mapping = tmp_path / "mapping.xlsx"
+    workbook.save(mapping)
+
+    with pytest.raises(ProcessingError):
+        processor.validate_dispatch(archive, mapping)
+
+    assert not list((tmp_path / "jobs").glob("*"))

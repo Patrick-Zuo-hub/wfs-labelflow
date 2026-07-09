@@ -101,6 +101,26 @@ class CarrierMappingRow:
 
 
 @dataclass(frozen=True)
+class DispatchAssignment:
+    shipment_id: str
+    carrier_number: str
+    shipment_pdf_path: Path
+    shipment_txt_path: Path
+    carrier_pdf_path: Path
+    source_rows: tuple[int, ...] = ()
+
+
+@dataclass(frozen=True)
+class DispatchPlan:
+    assignments: Mapping[str, DispatchAssignment]
+    issues: tuple[ValidationIssue, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.assignments, MappingProxyType):
+            object.__setattr__(self, "assignments", MappingProxyType(dict(self.assignments)))
+
+
+@dataclass(frozen=True)
 class WfsLabel:
     group_index: int
     zpl_index: int

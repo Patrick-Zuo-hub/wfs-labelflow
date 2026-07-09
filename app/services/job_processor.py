@@ -9,8 +9,19 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from app.models import GroupPreview, JobPreview, JobState, ProcessingOptions
+from app.models import (
+    ArchiveInventory,
+    CarrierMappingRow,
+    DispatchPlan,
+    GroupPreview,
+    JobPreview,
+    JobState,
+    ProcessingOptions,
+)
+from app.services.archive_ingest import parse_zip_archive
 from app.services.classifier import classify_group
+from app.services.dispatch import build_dispatch_plan
+from app.services.excel_mapping import read_excel_mapping
 from app.services.output_builder import (
     allocate_output_names,
     build_processing_log,
@@ -39,6 +50,14 @@ class JobResult:
     paths: JobPaths
 
 
+@dataclass(frozen=True)
+class DispatchPreview:
+    job_id: str
+    inventory: ArchiveInventory
+    mappings: tuple[CarrierMappingRow, ...]
+    plan: DispatchPlan
+
+
 def new_job_id(now: datetime | None = None) -> str:
     timestamp = (now or datetime.now(UTC)).strftime("%Y%m%d_%H%M%S")
     return f"{timestamp}_{secrets.token_hex(2)}"
@@ -48,6 +67,7 @@ class JobProcessor:
     def __init__(self, storage: JobStorage, registry: JobRegistry):
         self.storage = storage
         self.registry = registry
+        self._dispatch_previews: dict[str, DispatchPreview] = {}
 
     def validate(
         self,
@@ -190,3 +210,31 @@ class JobProcessor:
             tuple(path.name for path in final_pdfs),
             record.paths,
         )
+
+    def validate_dispatch(self, label_zip: Path, mapping_xlsx: Path) -> DispatchPreview:
+        if not label_zip.is_file():
+            raise FileNotFoundError(label_zip)
+        if not mapping_xlsx.is_file():
+            raise FileNotFoundError(mapping_xlsx)
+
+        job_id = new_job_id()
+        paths = self.storage.create(job_id)
+        inventory: ArchiveInventory | None = None
+        try:
+            zip_copy = paths.uploads / label_zip.name
+            xlsx_copy = paths.uploads / mapping_xlsx.name
+            shutil.copy2(label_zip, zip_copy)
+            shutil.copy2(mapping_xlsx, xlsx_copy)
+
+            inventory = parse_zip_archive(zip_copy)
+            mappings = read_excel_mapping(xlsx_copy)
+            plan = build_dispatch_plan(inventory, mappings)
+            preview = DispatchPreview(job_id, inventory, mappings, plan)
+            self._dispatch_previews[job_id] = preview
+        except Exception:
+            if inventory is not None:
+                shutil.rmtree(inventory.extracted_root, ignore_errors=True)
+            self.storage.cleanup(job_id)
+            raise
+
+        return preview
