@@ -1,62 +1,58 @@
 import re
+import zipfile
 from pathlib import Path
 
+from openpyxl import Workbook
 from playwright.sync_api import Page, expect
 
-SAMPLE = Path("tests/fixtures/sample").resolve()
+
+def _build_zip(tmp_path: Path) -> Path:
+    archive = tmp_path / "labels.zip"
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr("9233758WFA.pdf", b"pdf-a")
+        zipped.writestr("9233758WFA.txt", b"txt-a")
+        zipped.writestr("9233758WFB.pdf", b"pdf-b")
+        zipped.writestr("9233758WFB.txt", b"txt-b")
+        zipped.writestr("CD2606260718.pdf", b"carrier")
+    return archive
 
 
-def sample_paths() -> list[str]:
-    return [
-        str(SAMPLE / "WFS Label-Sample.pdf"),
-        str(SAMPLE / "WFS Label-Sample.txt"),
-        str(SAMPLE / "Logistics Label-Sample.pdf"),
-    ]
+def _build_mapping(tmp_path: Path) -> Path:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Sheet1"
+    sheet.append(["货代单号", "WFS Shipment ID"])
+    sheet.append(["CD2606260718", "9233758WFA"])
+    sheet.append(["CD2606260718", "9233758WFB"])
+    mapping = tmp_path / "mapping.xlsx"
+    workbook.save(mapping)
+    return mapping
 
 
-def test_remove_file_and_clear_group(page: Page, live_server_url: str) -> None:
-    page.goto(live_server_url)
-    picker = page.locator('[name="group_1"]')
-    picker.set_input_files(sample_paths())
-    expect(page.locator('[data-group="1"] .file-list li')).to_have_count(3)
-
-    page.locator('[data-group="1"] .remove-file').first.click()
-    expect(page.locator('[data-group="1"] .file-list li')).to_have_count(2)
-
-    page.locator('[data-group="1"] .clear-group').click()
-    expect(page.locator('[data-group="1"] .file-list li')).to_have_count(0)
-
-
-def test_validation_error_stays_in_exact_group(
+def test_clear_button_removes_selected_files(
     page: Page,
     live_server_url: str,
     tmp_path: Path,
 ) -> None:
-    broken = tmp_path / "Logistics Label-Sample.pdf"
-    broken.write_bytes(b"broken")
     page.goto(live_server_url)
-    page.locator('[name="group_2"]').set_input_files(
-        [
-            str(SAMPLE / "WFS Label-Sample.pdf"),
-            str(SAMPLE / "WFS Label-Sample.txt"),
-            str(broken),
-        ]
-    )
+    archive = _build_zip(tmp_path)
+    page.locator('[name="label_zip"]').set_input_files(str(archive))
+    expect(page.locator('[data-field="label_zip"] .file-list li')).to_have_count(1)
 
-    page.locator("#validate-button").click()
-
-    error = page.locator('[data-group="2"] .group-error')
-    expect(error).to_be_visible()
-    expect(error).to_contain_text("第 2 组")
-    expect(page.locator('[data-group="1"] .group-error')).to_be_hidden()
+    page.locator('[data-field="label_zip"] .clear-file').click()
+    expect(page.locator('[data-field="label_zip"] .file-list li')).to_have_count(0)
+    assert page.locator('[name="label_zip"]').input_value() == ""
 
 
-def test_success_clears_all_five_groups_and_keeps_download(
+def test_success_clears_uploads_and_keeps_download(
     page: Page,
     live_server_url: str,
+    tmp_path: Path,
 ) -> None:
     page.goto(live_server_url)
-    page.locator('[name="group_1"]').set_input_files(sample_paths())
+    page.locator('[name="label_zip"]').set_input_files(str(_build_zip(tmp_path)))
+    page.locator('[name="mapping_xlsx"]').set_input_files(str(_build_mapping(tmp_path)))
+
     page.locator("#validate-button").click()
     expect(page.locator("#preview")).to_be_visible()
 
@@ -67,10 +63,9 @@ def test_success_clears_all_five_groups_and_keeps_download(
         "href",
         re.compile(r"^/downloads/"),
     )
-    for index in range(1, 6):
-        expect(page.locator(f'[data-group="{index}"] .file-list li')).to_have_count(0)
-        assert page.locator(f'[name="group_{index}"]').input_value() == ""
-    expect(page.locator('[name="logistics_repeat"][value="1"]')).to_be_checked()
+    assert page.locator('[name="label_zip"]').input_value() == ""
+    assert page.locator('[name="mapping_xlsx"]').input_value() == ""
+
     with page.expect_download() as download_info:
         page.locator("#download-link").click()
     assert download_info.value.suggested_filename == "output.zip"

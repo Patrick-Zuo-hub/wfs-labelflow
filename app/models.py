@@ -202,6 +202,7 @@ class JobPreview:
     groups: tuple[GroupPreview, ...]
     options: ProcessingOptions
     issues: tuple[ValidationIssue, ...] = ()
+    dispatch_plan: DispatchPlan | None = None
 
     @property
     def pairs(self) -> tuple[BoxPair, ...]:

@@ -24,6 +24,7 @@ from app.services.dispatch import build_dispatch_plan
 from app.services.excel_mapping import read_excel_mapping
 from app.services.output_builder import (
     allocate_output_names,
+    build_dispatch_summary,
     build_processing_log,
     build_summary,
     build_verified_zip,
@@ -58,6 +59,13 @@ class DispatchPreview:
     plan: DispatchPlan
 
 
+@dataclass(frozen=True)
+class DispatchJobResult:
+    job_id: str
+    archive: Path
+    paths: JobPaths
+
+
 def new_job_id(now: datetime | None = None) -> str:
     timestamp = (now or datetime.now(UTC)).strftime("%Y%m%d_%H%M%S")
     return f"{timestamp}_{secrets.token_hex(2)}"
@@ -68,6 +76,7 @@ class JobProcessor:
         self.storage = storage
         self.registry = registry
         self._dispatch_previews: dict[str, DispatchPreview] = {}
+        self._dispatch_results: dict[str, DispatchJobResult] = {}
 
     def validate(
         self,
@@ -124,6 +133,9 @@ class JobProcessor:
         record = self.registry.get(job_id)
         if record.state is not JobState.AWAITING_CONFIRMATION:
             raise ValueError("job is not awaiting confirmation")
+
+        if record.preview.dispatch_plan is not None:
+            return self._generate_dispatch(record)
 
         record.state = JobState.GENERATING
         try:
@@ -211,6 +223,65 @@ class JobProcessor:
             record.paths,
         )
 
+    def _generate_dispatch(self, record: JobRecord) -> JobResult:
+        plan = record.preview.dispatch_plan
+        if plan is None:
+            raise ValueError("job is not a dispatch preview")
+
+        record.state = JobState.GENERATING
+        try:
+            assignments = tuple(plan.assignments.values())
+            carrier_numbers = tuple(
+                dict.fromkeys(assignment.carrier_number for assignment in assignments)
+            )
+            names = allocate_output_names(carrier_numbers)
+
+            final_pdfs: list[Path] = []
+            for carrier_number in carrier_numbers:
+                assignment = next(
+                    item for item in assignments if item.carrier_number == carrier_number
+                )
+                output = record.paths.output / names[carrier_number]
+                shutil.copy2(assignment.carrier_pdf_path, output)
+                final_pdfs.append(output)
+
+            summary = record.paths.output / "summary.csv"
+            log = record.paths.output / "processing_log.txt"
+            archive = record.paths.output / "output.zip"
+            build_dispatch_summary(record.preview.job_id, plan, names, summary)
+            log_lines = [f"job_id={record.preview.job_id}", f"cleanup_scope={record.paths.root}"]
+            for assignment in assignments:
+                log_lines.append(
+                    f"shipment_id={assignment.shipment_id} "
+                    f"carrier_number={assignment.carrier_number} "
+                    f"shipment_pdf={assignment.shipment_pdf_path.name} "
+                    f"shipment_txt={assignment.shipment_txt_path.name} "
+                    f"carrier_pdf={assignment.carrier_pdf_path.name} "
+                    f"output={names[assignment.carrier_number]} "
+                    f"source_rows={list(assignment.source_rows)}"
+                )
+            build_processing_log(tuple(log_lines), log)
+            build_verified_zip(tuple(final_pdfs), summary, log, archive)
+            self.storage.cleanup_inputs(record.preview.job_id, archive)
+        except Exception:
+            record.state = JobState.GENERATION_FAILED
+            raise
+
+        record.state = JobState.READY_FOR_DOWNLOAD
+        record.archive = archive
+        record.completed_at = datetime.now(UTC)
+        self._dispatch_results[record.preview.job_id] = DispatchJobResult(
+            job_id=record.preview.job_id,
+            archive=archive,
+            paths=record.paths,
+        )
+        return JobResult(
+            record.preview.job_id,
+            archive,
+            tuple(path.name for path in final_pdfs),
+            record.paths,
+        )
+
     def validate_dispatch(self, label_zip: Path, mapping_xlsx: Path) -> DispatchPreview:
         if not label_zip.is_file():
             raise FileNotFoundError(label_zip)
@@ -231,6 +302,19 @@ class JobProcessor:
             plan = build_dispatch_plan(inventory, mappings)
             preview = DispatchPreview(job_id, inventory, mappings, plan)
             self._dispatch_previews[job_id] = preview
+            self.registry.add(
+                job_id,
+                JobRecord(
+                    JobState.AWAITING_CONFIRMATION,
+                    JobPreview(
+                        job_id,
+                        (),
+                        ProcessingOptions(),
+                        dispatch_plan=plan,
+                    ),
+                    paths,
+                ),
+            )
         except Exception:
             if inventory is not None:
                 shutil.rmtree(inventory.extracted_root, ignore_errors=True)
@@ -238,3 +322,21 @@ class JobProcessor:
             raise
 
         return preview
+
+    def generate_dispatch(self, job_id: str) -> DispatchJobResult:
+        self.generate(job_id)
+        return self.get_dispatch_result(job_id)
+
+    def get_dispatch_result(self, job_id: str) -> DispatchJobResult:
+        result = self._dispatch_results.get(job_id)
+        if result is None:
+            raise KeyError(job_id)
+        return result
+
+    def delete_dispatch(self, job_id: str) -> None:
+        preview = self._dispatch_previews.pop(job_id, None)
+        self._dispatch_results.pop(job_id, None)
+        self.registry.remove(job_id)
+        if preview is not None:
+            shutil.rmtree(preview.inventory.extracted_root, ignore_errors=True)
+        self.storage.cleanup(job_id)

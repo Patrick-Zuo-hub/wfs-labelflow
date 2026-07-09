@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">本机处理 · 文件不外传</p>
           <h1>WFS LabelFlow</h1>
-          <p class="lede">先校验逐箱关系，再确认生成 ZIP。</p>
+          <p class="lede">上传 ZIP + Excel，先校验，再确认生成 ZIP。</p>
         </div>
         <button id="clear-all" class="danger" type="button">清空全部上传</button>
       </header>
@@ -20,53 +20,50 @@
       <section id="error-summary" class="notice error" hidden aria-live="assertive"></section>
 
       <form id="upload-form">
-        <section class="workspace">
-          <div id="groups">
-            {% for group in range(1, 6) %}
-            <article class="group-panel" data-group="{{ group }}">
-              <div class="group-heading">
-                <h2>第 {{ group }} 组</h2>
-                <button class="clear-group ghost" type="button">清空本组</button>
-              </div>
-              <label class="dropzone">
-                <span>拖入或选择 WFS PDF、ZPL/TXT、货代 PDF</span>
-                <input name="group_{{ group }}" type="file" multiple accept=".pdf,.txt,.zpl">
-              </label>
-              <ul class="file-list" aria-label="已选文件"></ul>
-              <div class="group-error notice error" hidden></div>
-            </article>
-            {% endfor %}
-          </div>
+        <section class="upload-grid">
+          <article class="upload-card" data-field="label_zip">
+            <div class="card-heading">
+              <h2>标签 ZIP</h2>
+              <button class="clear-file ghost" type="button">清空</button>
+            </div>
+            <label class="dropzone">
+              <span>选择包含 WFS PDF/TXT 与货代 PDF 的 ZIP</span>
+              <input name="label_zip" type="file" accept=".zip">
+            </label>
+            <ul class="file-list" aria-label="已选 ZIP 文件"></ul>
+          </article>
 
-          <aside class="sidebar">
-            <h2>处理选项</h2>
-            <p><strong>WFS 标签：</strong>固定 2 份</p>
-            <fieldset>
-              <legend>货代标签份数</legend>
-              <label><input type="radio" name="logistics_repeat" value="1" checked> 1 份</label>
-              <label><input type="radio" name="logistics_repeat" value="2"> 2 份</label>
-            </fieldset>
-            <p>✓ 忽略 Pallet Label</p>
-            <p>✓ 跨组合并相同 SKU</p>
-            <p>✓ 输出 summary.csv</p>
-            <button id="validate-button" type="submit">校验并预览</button>
-          </aside>
+          <article class="upload-card" data-field="mapping_xlsx">
+            <div class="card-heading">
+              <h2>对应关系 Excel</h2>
+              <button class="clear-file ghost" type="button">清空</button>
+            </div>
+            <label class="dropzone">
+              <span>选择包含「货代单号 / WFS Shipment ID」的 Excel</span>
+              <input name="mapping_xlsx" type="file" accept=".xlsx,.xlsm">
+            </label>
+            <ul class="file-list" aria-label="已选 Excel 文件"></ul>
+          </article>
         </section>
+
+        <div class="actions">
+          <button id="validate-button" type="submit">校验并预览</button>
+        </div>
       </form>
 
       <section id="preview" hidden>
         <div class="notice success">
-          <strong>强校验通过</strong>，请确认逐箱映射。
+          <strong>强校验通过</strong>，请确认货代分配结果。
         </div>
         <table>
           <thead>
             <tr>
-              <th>组</th>
-              <th>箱序</th>
-              <th>WFS 页</th>
-              <th>SKU</th>
-              <th>货代页</th>
-              <th>输出顺序</th>
+              <th>WFS 单号</th>
+              <th>货代单号</th>
+              <th>WFS PDF</th>
+              <th>WFS TXT</th>
+              <th>货代 PDF</th>
+              <th>对应行号</th>
             </tr>
           </thead>
           <tbody id="preview-rows"></tbody>

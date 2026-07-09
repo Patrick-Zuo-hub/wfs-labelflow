@@ -107,3 +107,31 @@ def test_dispatch_validation_failure_cleans_job_root(tmp_path: Path) -> None:
         processor.validate_dispatch(archive, mapping)
 
     assert not list((tmp_path / "jobs").glob("*"))
+
+
+def test_dispatch_validate_then_generate_atomic_zip(tmp_path: Path) -> None:
+    processor = JobProcessor(JobStorage(tmp_path / "jobs"), JobRegistry())
+
+    archive = tmp_path / "labels.zip"
+    with zipfile.ZipFile(archive, "w") as zipped:
+        zipped.writestr("9233758WFA.pdf", b"pdf")
+        zipped.writestr("9233758WFA.txt", b"txt")
+        zipped.writestr("CD2606260718.pdf", b"carrier")
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Sheet1"
+    sheet.append(["货代单号", "WFS Shipment ID"])
+    sheet.append(["CD2606260718", "9233758WFA"])
+    mapping = tmp_path / "mapping.xlsx"
+    workbook.save(mapping)
+
+    preview = processor.validate_dispatch(archive, mapping)
+    result = processor.generate(preview.job_id)
+
+    assert result.archive.is_file()
+    assert not result.paths.uploads.exists()
+    assert not result.paths.intermediate.exists()
+    assert not list(result.paths.output.glob("*.pdf"))
+    with zipfile.ZipFile(result.archive) as zipped:
+        assert zipped.testzip() is None

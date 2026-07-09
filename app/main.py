@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -12,8 +11,8 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import Settings
 from app.errors import ProcessingError
-from app.models import ProcessingOptions, Severity, ValidationIssue
-from app.services.job_processor import JobProcessor, UploadedGroup
+from app.models import Severity, ValidationIssue
+from app.services.job_processor import JobProcessor
 from app.services.registry import JobRegistry
 from app.services.storage import JobStorage
 
@@ -27,33 +26,24 @@ def _validation_error(message: str) -> ValidationIssue:
         severity=Severity.STRONG,
         rule="validation_error",
         message=message,
-        repair="请修正上传文件或参数后重新提交。",
+        repair="请修正上传文件后重新提交。",
     )
 
 
 def _preview_dict(preview) -> dict:
     return {
-        "pairs": [
+        "assignments": [
             {
-                "group_index": pair.group_index,
-                "box_index": pair.box_index,
-                "sku": pair.sku,
-                "wfs_pdf_page": pair.wfs_pdf_page,
-                "logistics_pdf_page": pair.logistics_pdf_page,
-                "output_sequence": (
-                    ["W"] * preview.options.wfs_repeat
-                    + ["L"] * preview.options.logistics_repeat
-                ),
+                "shipment_id": assignment.shipment_id,
+                "carrier_number": assignment.carrier_number,
+                "shipment_pdf": assignment.shipment_pdf_path.name,
+                "shipment_txt": assignment.shipment_txt_path.name,
+                "carrier_pdf": assignment.carrier_pdf_path.name,
+                "source_rows": list(assignment.source_rows),
             }
-            for pair in preview.pairs
+            for assignment in preview.plan.assignments.values()
         ],
-        "ignored_pallets": [
-            {"group_index": group.files.group_index, "page": label.pdf_page}
-            for group in preview.groups
-            for label in group.labels
-            if label.label_type.value == "pallet"
-        ],
-        "issues": _issue_payloads(preview.issues),
+        "issues": _issue_payloads(preview.plan.issues),
     }
 
 
@@ -63,6 +53,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     storage = JobStorage(resolved.runtime_root)
     processor = JobProcessor(storage, registry)
     app_dir = Path(__file__).resolve().parent
+
     app = FastAPI(title="WFS LabelFlow")
     templates = Jinja2Templates(directory=str(app_dir / "templates"))
     app.state.settings = resolved
@@ -82,50 +73,39 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/jobs/validate")
     async def validate_job(request: Request) -> dict:
         form = await request.form()
-        raw_repeat = form.get("logistics_repeat", 1)
-        try:
-            options = ProcessingOptions(logistics_repeat=int(raw_repeat))
-        except (TypeError, ValueError) as exc:
+        zip_upload = form.get("label_zip")
+        xlsx_upload = form.get("mapping_xlsx")
+        if not getattr(zip_upload, "filename", None) or not getattr(
+            xlsx_upload,
+            "filename",
+            None,
+        ):
             raise HTTPException(
                 status_code=422,
-                detail={"issues": _issue_payloads((_validation_error(str(exc)),))},
-            ) from exc
-
-        uploads_by_group: dict[int, list] = {}
-        for key in ("group_1", "group_2", "group_3", "group_4", "group_5"):
-            files = [
-                item
-                for item in form.getlist(key)
-                if getattr(item, "filename", None)
-            ]
-            if files:
-                uploads_by_group[int(key.split("_")[1])] = files
+                detail={
+                    "issues": _issue_payloads(
+                        (_validation_error("请同时上传 ZIP 和 Excel 文件。"),)
+                    )
+                },
+            )
 
         with TemporaryDirectory() as temporary:
             incoming = Path(temporary)
-            groups: list[UploadedGroup] = []
-            for index in range(1, 6):
-                files = uploads_by_group.get(index)
-                if not files:
-                    continue
-                group_dir = incoming / f"group_{index}"
-                group_dir.mkdir()
-                paths: list[Path] = []
-                for upload in files:
-                    destination = group_dir / Path(upload.filename or "unnamed").name
-                    with destination.open("wb") as handle:
-                        shutil.copyfileobj(upload.file, handle)
-                    paths.append(destination)
-                groups.append(UploadedGroup(index, tuple(paths)))
+            zip_path = incoming / Path(zip_upload.filename).name
+            xlsx_path = incoming / Path(xlsx_upload.filename).name
+            with zip_path.open("wb") as handle:
+                shutil.copyfileobj(zip_upload.file, handle)
+            with xlsx_path.open("wb") as handle:
+                shutil.copyfileobj(xlsx_upload.file, handle)
 
             try:
-                preview = processor.validate(tuple(groups), options)
+                preview = processor.validate_dispatch(zip_path, xlsx_path)
             except ProcessingError as exc:
                 raise HTTPException(
                     status_code=422,
                     detail={"issues": _issue_payloads(exc.issues)},
                 ) from exc
-            except ValueError as exc:
+            except (FileNotFoundError, ValueError) as exc:
                 raise HTTPException(
                     status_code=422,
                     detail={"issues": _issue_payloads((_validation_error(str(exc)),))},
@@ -136,7 +116,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.post("/api/jobs/{job_id}/generate")
     def generate_job(job_id: str) -> dict:
         try:
-            result = processor.generate(job_id)
+            result = processor.generate_dispatch(job_id)
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="job not found") from exc
         except ProcessingError as exc:
@@ -154,28 +134,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/downloads/{job_id}")
     def download_job(job_id: str) -> FileResponse:
         try:
-            record = registry.get(job_id)
+            record = processor.get_dispatch_result(job_id)
         except KeyError as exc:
-            raise HTTPException(status_code=404, detail="job not found") from exc
+            raise HTTPException(status_code=404, detail="archive not ready") from exc
 
-        if record.archive is None or not record.archive.is_file():
+        if not record.archive.is_file():
             raise HTTPException(status_code=404, detail="archive not ready")
         return FileResponse(record.archive, media_type="application/zip", filename="output.zip")
 
     @app.delete("/api/jobs/{job_id}")
     def delete_job(job_id: str) -> dict[str, bool]:
         try:
-            registry.get(job_id)
-        except KeyError as exc:
+            processor.delete_dispatch(job_id)
+        except (KeyError, FileNotFoundError) as exc:
             raise HTTPException(status_code=404, detail="job not found") from exc
-        storage.cleanup(job_id)
-        registry.remove(job_id)
         return {"ok": True}
 
     @app.post("/api/maintenance/expire")
     def expire_results() -> dict[str, list[str]]:
-        expired = registry.expire(storage, resolved.zip_retention, datetime.now(UTC))
-        return {"expired_job_ids": list(expired)}
+        return {"expired_job_ids": []}
 
     return app
 

@@ -17,13 +17,13 @@ body {
 }
 
 main {
-  width: min(1180px, 94vw);
+  width: min(1120px, 94vw);
   margin: 40px auto;
   padding-bottom: 40px;
 }
 
 .hero,
-.group-heading,
+.card-heading,
 .actions {
   display: flex;
   justify-content: space-between;
@@ -46,14 +46,13 @@ main {
   color: #475467;
 }
 
-.workspace {
+.upload-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
 
-.group-panel,
-.sidebar,
+.upload-card,
 #preview,
 #result {
   background: white;
@@ -158,21 +157,12 @@ td {
   margin-top: 18px;
 }
 
-fieldset {
-  border: 1px solid #eaecf0;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin-right: 12px;
+.upload-grid .actions {
+  justify-content: flex-end;
 }
 
 @media (max-width: 760px) {
-  .workspace {
+  .upload-grid {
     grid-template-columns: 1fr;
   }
 

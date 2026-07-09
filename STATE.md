@@ -2,107 +2,94 @@
 
 ## Snapshot
 
-- Last updated: 2026-07-05 11:01:10 CST +0800
-- Confidence: high for sample-verified and test-verified MVP behavior; medium
-  for real production filename classification until the provisional `WFS*`
-  prefix rule is validated against representative live filenames.
-- One-line status: MVP implementation is complete and sample-verified; the
-  remaining gated action is product-owner acceptance on the provisional
-  `WFS*` filename rule and any refinements it requires.
+- Last updated: 2026-07-09 20:40:00 CST +0800
+- Confidence: high for the new ZIP + Excel dispatch workflow in API and
+  integration tests; medium for browser automation in this sandbox because
+  Chromium launch is blocked by macOS permission constraints here.
+- One-line status: the ZIP + Excel dispatch flow is implemented and
+  regression-tested at the service/API level; browser smoke verification is
+  environment-blocked in the Codex sandbox.
 
 ## Objective and success criteria
 
-- Objective: Build a local, single-user WFS and logistics label processor that
-  uses ZPL/TXT metadata to produce validated, ordered, per-SKU PDFs in a ZIP.
-- Success criteria: The acceptance criteria in
-  `docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md` pass, including
-  atomic strong validation, read-only preview, output read-back, and complete
-  upload reset after successful ZIP generation.
+- Objective: Build a local, single-user WFS label processor that can validate
+  the WFS ZIP + Excel carrier mapping workflow and produce an atomic dispatch
+  ZIP.
+- Success criteria: The updated upload flow passes validation, preview,
+  generation, download, cleanup, and upload-reset checks for the ZIP + Excel
+  dispatch path.
 
 ## Current phase
 
-- Phase: Implemented MVP; awaiting product-owner acceptance on the provisional
-  `WFS*` filename rule against representative production filenames.
-- Evidence: The browser flow, validation, preview, ZIP generation, upload
-  reset, and cleanup behaviors have been implemented and exercised against the
-  bundled sample set. The current deterministic classification rule is
-  provisionally `WFS*`-prefixed filenames for the WFS PDF and ZPL/TXT pair,
-  with the remaining PDF required to be non-`WFS*`.
+- Phase: ZIP + Excel dispatch workflow implemented; awaiting browser smoke
+  verification in an environment that can launch Chromium.
+- Evidence: The API/integration path for ZIP + Excel upload, mapping
+  validation, atomic generation, download, and cleanup is implemented and
+  regression-tested in the worktree.
 
 ## Work status
 
 ### Completed
 
-- Inspected the authoritative requirements and top-level sample set.
-- Verified that the sample WFS PDF has 4 pages, the logistics PDF has 3 pages,
-  and the ZPL/TXT has 4 complete segments: 3 `SINGLE SKU` segments followed by
-  1 `PALLET` segment.
-- Implemented the local FastAPI monolith with server-rendered HTML and minimal
-  native JavaScript.
-- Implemented the atomic two-step workflow: validate and preview, then
-  explicitly confirm generation.
-- Implemented single-file delete, clear-group, clear-all, group-specific
-  errors, and full browser/upload reset after successful ZIP verification.
-- Implemented ZIP generation with read-back validation and scoped cleanup.
-- Verified the sample end to end by rendering the source PDFs and generated
-  output ZIP contents and checking them visually.
-- Verified the full automated suite in the worktree: 99 tests passed, with 3
-  warnings from third-party dependencies only.
+- Inspected the updated business rules for the ZIP + Excel dispatch workflow.
+- Implemented ZIP ingestion, Excel mapping ingestion, and dispatch planning.
+- Implemented atomic validation and generation for the dispatch flow.
+- Reworked the server-rendered UI for one ZIP upload and one Excel upload.
+- Added clear-file controls, clear-all controls, and upload reset after
+  successful generation.
+- Added API and integration coverage for the dispatch path.
+- Verified the dispatch API/integration suite in the worktree.
 
 ### Active
 
-- Product-owner review of the implemented MVP against representative production
-  filenames.
+- Browser smoke verification remains blocked in this sandbox because Chromium
+  cannot launch here.
 
 ### Pending
 
-- Confirm the provisional `WFS*` filename rule against representative live
-  filenames and refine it only if a non-prefix production pattern appears.
-- If the business rules change, update the classifier and acceptance tests.
-- Gather final product-owner acceptance on the implemented MVP.
+- Run the browser smoke tests in an environment that can launch Playwright
+  Chromium.
+- If the user wants additional refinements, update the classifier or UX
+  accordingly.
 
 ### Unknown
 
-- Real production filename patterns beyond the current `WFS*` prefix rule are
-  still unknown. Verify with representative filenames before relying on any
-  additional automatic classification in production.
+- Browser automation success in this sandbox is still unknown because the
+  Chromium launch is blocked by macOS permission handling here.
 
 ## Blockers, risks, and conflicts
 
-- Blockers: None for the implemented MVP; only the production filename rule is
-  still awaiting product-owner confirmation.
-- Risks: Ambiguous filename classification could swap WFS and logistics PDFs;
-  the MVP classifier must reject ambiguity and must not guess. The provisional
-  prefix rule may still need refinement after live filename review.
-- Conflicts: None known in the approved MVP design.
+- Blockers: Browser smoke verification is blocked by the sandboxed Chromium
+  launch permission issue.
+- Risks: The dispatch workflow depends on the uploaded ZIP and Excel file
+  contents matching the expected naming and mapping rules; ambiguous inputs
+  must still fail atomically.
+- Conflicts: None known in the current dispatch design.
 
 ## Next actions
 
 | Priority | Action | Owner or trigger | Evidence |
 | --- | --- | --- | --- |
-| P0 | Review the implemented MVP with representative production filenames and confirm the classification rule | Product owner | Explicit approval of the filename rule and the current UX |
-| P1 | Update classifier/tests if the production filename rule changes | Codex, after P0 feedback | Acceptance tests and browser flow remain green |
-| P2 | Archive the verified MVP state | Codex after acceptance | `STATE.md` and `AGENTS.md` reflect the accepted operating model |
+| P0 | Run browser smoke verification in a Chromium-capable environment | Codex | Browser flow passes without the sandbox launch error |
+| P1 | Gather user feedback on the new ZIP + Excel dispatch UX | Product owner | Explicit approval of the current upload/preview/confirm flow |
+| P2 | Archive the verified dispatch state | Codex after verification | `STATE.md` and `AGENTS.md` reflect the accepted operating model |
 
 ## Recent consequential changes
 
 - 2026-07-04 — Established `AGENTS.md` as the project map and mandated
   `STATE.md`-first recovery for every production/development round.
-- 2026-07-04 to 2026-07-05 — Implemented the local monolith architecture,
-  atomic validation/preview, read-only preview, precise correction controls,
-  ZIP verification, browser reset behavior, and safe cleanup.
-- 2026-07-05 — Rendered the bundled sample inputs and visually confirmed the
-  generated per-SKU PDFs matched the expected sample structure.
-- 2026-07-05 — Ran the complete automated test suite successfully: 99 passed,
-  3 warnings.
-- 2026-07-05 — Refreshed the public GitHub onboarding docs, committed the
-  sample evidence set, and recorded the provisional `WFS*` filename rule as a
-  follow-up item.
+- 2026-07-09 — Added ZIP ingestion, Excel mapping ingestion, dispatch
+  planning, and atomic dispatch generation.
+- 2026-07-09 — Reworked the upload UI to a single ZIP + Excel workflow with
+  clear controls and upload reset after successful generation.
+- 2026-07-09 — Verified the dispatch API/integration suite successfully in the
+  worktree.
+- 2026-07-09 — Browser smoke tests were blocked by Chromium launch permission
+  errors in the Codex sandbox.
 
 ## Evidence and deeper reading
 
 - [Approved MVP design](docs/superpowers/specs/2026-07-04-wfs-label-flow-design.md)
-- [Public release plan](docs/superpowers/plans/2026-07-05-wfs-label-flow-public-github.md)
 - [Authoritative requirements](wfs_label_processing_requirements.md)
 - [Project map](AGENTS.md)
 - [Sample inputs](Sample%20Label/)

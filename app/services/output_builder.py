@@ -6,7 +6,7 @@ import zipfile
 from pathlib import Path
 
 from app.errors import ProcessingError
-from app.models import GroupPreview, Severity, ValidationIssue
+from app.models import DispatchPlan, GroupPreview, Severity, ValidationIssue
 
 _UNSAFE = re.compile(r'[\/\\:*?"<>|\x00-\x1f]')
 
@@ -77,6 +77,41 @@ def build_summary(
                         "warnings": warnings,
                     }
                 )
+
+
+def build_dispatch_summary(
+    job_id: str,
+    plan: DispatchPlan,
+    names: dict[str, str],
+    output: Path,
+) -> None:
+    fields = [
+        "job_id",
+        "shipment_id",
+        "carrier_number",
+        "shipment_pdf_file",
+        "shipment_txt_file",
+        "carrier_pdf_file",
+        "source_rows",
+        "output_pdf",
+    ]
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8-sig") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        writer.writeheader()
+        for shipment_id, assignment in plan.assignments.items():
+            writer.writerow(
+                {
+                    "job_id": job_id,
+                    "shipment_id": shipment_id,
+                    "carrier_number": assignment.carrier_number,
+                    "shipment_pdf_file": assignment.shipment_pdf_path.name,
+                    "shipment_txt_file": assignment.shipment_txt_path.name,
+                    "carrier_pdf_file": assignment.carrier_pdf_path.name,
+                    "source_rows": "|".join(str(row) for row in assignment.source_rows),
+                    "output_pdf": names[assignment.carrier_number],
+                }
+            )
 
 
 def build_processing_log(lines: tuple[str, ...], output: Path) -> None:

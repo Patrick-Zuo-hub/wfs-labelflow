@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-import tempfile
 import zipfile
 from pathlib import Path
 
@@ -36,7 +35,8 @@ def parse_zip_archive(path: Path) -> ArchiveInventory:
     if not path.is_file():
         _fail("archive_missing", "ZIP archive is missing", filename=path.name)
 
-    extracted_root = Path(tempfile.mkdtemp(prefix="wfs-zip-archive-"))
+    extracted_root = path.parent / f"{path.stem}-extracted"
+    extracted_root.mkdir(parents=True, exist_ok=False)
     entries: list[ArchiveEntry] = []
     seen: set[tuple[str, str]] = set()
 

@@ -6,13 +6,27 @@ const previewRows = document.querySelector("#preview-rows");
 const confirmButton = document.querySelector("#confirm-button");
 const backButton = document.querySelector("#back-button");
 const downloadLink = document.querySelector("#download-link");
+const clearAllButton = document.querySelector("#clear-all");
 
 let activeJobId = null;
 
-function listFiles(panel) {
-  const input = panel.querySelector('input[type="file"]');
-  const list = panel.querySelector(".file-list");
+function uploadCards() {
+  return [...document.querySelectorAll(".upload-card")];
+}
+
+function fileInput(card) {
+  return card.querySelector('input[type="file"]');
+}
+
+function fileList(card) {
+  return card.querySelector(".file-list");
+}
+
+function listFiles(card) {
+  const input = fileInput(card);
+  const list = fileList(card);
   list.replaceChildren();
+
   [...input.files].forEach((file, index) => {
     const item = document.createElement("li");
     item.append(document.createTextNode(file.name));
@@ -27,9 +41,10 @@ function listFiles(panel) {
 }
 
 async function invalidatePreview() {
-  if (activeJobId) {
-    await fetch(`/api/jobs/${activeJobId}`, { method: "DELETE" });
+  if (!activeJobId) {
+    return;
   }
+  await fetch(`/api/jobs/${activeJobId}`, { method: "DELETE" });
   activeJobId = null;
   preview.hidden = true;
   previewRows.replaceChildren();
@@ -43,88 +58,82 @@ async function removeFile(input, removedIndex) {
     }
   });
   input.files = transfer.files;
-  listFiles(input.closest(".group-panel"));
+  listFiles(input.closest(".upload-card"));
   await invalidatePreview();
 }
 
 function clearErrors() {
   errorSummary.hidden = true;
   errorSummary.replaceChildren();
-  document.querySelectorAll(".group-error").forEach((element) => {
-    element.hidden = true;
-    element.replaceChildren();
-  });
 }
 
 function formatIssue(issue) {
   const parts = [issue.message];
+  if (issue.filename) {
+    parts.push(`文件：${issue.filename}`);
+  }
+  if (issue.page !== undefined && issue.page !== null) {
+    parts.push(`页码：${issue.page}`);
+  }
   if (issue.expected !== undefined || issue.actual !== undefined) {
-    parts.push(`期望：${issue.expected ?? "-"}`);
-    parts.push(`实际：${issue.actual ?? "-"}`);
+    parts.push(`期望：${JSON.stringify(issue.expected ?? "-")}`);
+    parts.push(`实际：${JSON.stringify(issue.actual ?? "-")}`);
   }
   parts.push(issue.repair);
-  return parts.join("。");
+  return parts.join("；");
 }
 
 function showIssues(issues) {
   clearErrors();
   errorSummary.hidden = false;
-  errorSummary.textContent = "校验未通过，请按组修正以下问题。";
+  errorSummary.textContent = "校验未通过，请按下面的问题修正后重新上传。";
   issues.forEach((issue) => {
-    const target = issue.group_index
-      ? document.querySelector(`[data-group="${issue.group_index}"] .group-error`)
-      : errorSummary;
-    target.hidden = false;
     const line = document.createElement("p");
     line.textContent = formatIssue(issue);
-    target.append(line);
+    errorSummary.append(line);
   });
 }
 
-function clearPanelFiles(panel) {
-  const input = panel.querySelector('input[type="file"]');
-  input.value = "";
-  listFiles(panel);
-  panel.querySelector(".group-error").hidden = true;
+function resetInputs() {
+  uploadCards().forEach((card) => {
+    fileInput(card).value = "";
+    listFiles(card);
+  });
+  form.reset();
 }
 
-async function discardAndClearAll() {
-  await invalidatePreview();
-  document.querySelectorAll(".group-panel").forEach(clearPanelFiles);
-  form.reset();
-  preview.hidden = true;
-  result.hidden = true;
-  previewRows.replaceChildren();
-  clearErrors();
-}
-
-function resetInputsAfterSuccess() {
-  document.querySelectorAll(".group-panel").forEach(clearPanelFiles);
-  form.reset();
+function resetAfterSuccess() {
+  resetInputs();
   activeJobId = null;
   preview.hidden = true;
   previewRows.replaceChildren();
   clearErrors();
 }
 
-document.querySelectorAll('.group-panel input[type="file"]').forEach((input) => {
-  input.addEventListener("change", () => {
-    listFiles(input.closest(".group-panel"));
-    invalidatePreview();
-  });
-});
-
-document.querySelectorAll(".clear-group").forEach((button) => {
-  button.addEventListener("click", async () => {
+uploadCards().forEach((card) => {
+  const input = fileInput(card);
+  input.addEventListener("change", async () => {
+    listFiles(card);
     await invalidatePreview();
-    clearPanelFiles(button.closest(".group-panel"));
+  });
+  card.querySelector(".clear-file").addEventListener("click", async () => {
+    input.value = "";
+    listFiles(card);
+    await invalidatePreview();
   });
 });
 
-document.querySelector("#clear-all").addEventListener("click", discardAndClearAll);
+clearAllButton.addEventListener("click", async () => {
+  await invalidatePreview();
+  resetInputs();
+  preview.hidden = true;
+  result.hidden = true;
+  clearErrors();
+});
 
 backButton.addEventListener("click", () => {
   preview.hidden = true;
+  result.hidden = true;
   form.hidden = false;
 });
 
@@ -132,11 +141,13 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   await invalidatePreview();
   clearErrors();
+
   const response = await fetch("/api/jobs/validate", {
     method: "POST",
     body: new FormData(form),
   });
   const body = await response.json();
+
   if (!response.ok) {
     showIssues(body.detail?.issues ?? []);
     return;
@@ -144,15 +155,15 @@ form.addEventListener("submit", async (event) => {
 
   activeJobId = body.job_id;
   previewRows.replaceChildren(
-    ...body.preview.pairs.map((pair) => {
+    ...body.preview.assignments.map((assignment) => {
       const row = document.createElement("tr");
       [
-        pair.group_index,
-        pair.box_index,
-        pair.wfs_pdf_page,
-        pair.sku,
-        pair.logistics_pdf_page,
-        pair.output_sequence.join(" "),
+        assignment.shipment_id,
+        assignment.carrier_number,
+        assignment.shipment_pdf,
+        assignment.shipment_txt,
+        assignment.carrier_pdf,
+        assignment.source_rows.join(", "),
       ].forEach((value) => {
         const cell = document.createElement("td");
         cell.textContent = value;
@@ -161,14 +172,18 @@ form.addEventListener("submit", async (event) => {
       return row;
     }),
   );
+
   form.hidden = true;
   result.hidden = true;
   preview.hidden = false;
 });
 
 confirmButton.addEventListener("click", async () => {
-  const response = await fetch(`/api/jobs/${activeJobId}/generate`, { method: "POST" });
+  const response = await fetch(`/api/jobs/${activeJobId}/generate`, {
+    method: "POST",
+  });
   const body = await response.json();
+
   if (!response.ok) {
     showIssues(body.detail?.issues ?? []);
     form.hidden = false;
@@ -176,9 +191,8 @@ confirmButton.addEventListener("click", async () => {
     return;
   }
 
-  const url = body.download_url;
-  resetInputsAfterSuccess();
+  resetAfterSuccess();
   form.hidden = false;
   result.hidden = false;
-  downloadLink.href = url;
+  downloadLink.href = body.download_url;
 });
