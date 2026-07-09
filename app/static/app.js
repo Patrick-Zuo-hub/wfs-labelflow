@@ -7,6 +7,8 @@ const confirmButton = document.querySelector("#confirm-button");
 const backButton = document.querySelector("#back-button");
 const downloadLink = document.querySelector("#download-link");
 const clearAllButton = document.querySelector("#clear-all");
+const validateButton = document.querySelector("#validate-button");
+const formStatus = document.querySelector("#form-status");
 
 let activeJobId = null;
 
@@ -67,6 +69,16 @@ function clearErrors() {
   errorSummary.replaceChildren();
 }
 
+function clearStatus() {
+  formStatus.hidden = true;
+  formStatus.textContent = "";
+}
+
+function showStatus(message) {
+  formStatus.textContent = message;
+  formStatus.hidden = false;
+}
+
 function formatIssue(issue) {
   const parts = [issue.message];
   if (issue.filename) {
@@ -85,6 +97,7 @@ function formatIssue(issue) {
 
 function showIssues(issues) {
   clearErrors();
+  clearStatus();
   errorSummary.hidden = false;
   errorSummary.textContent = "校验未通过，请按下面的问题修正后重新上传。";
   issues.forEach((issue) => {
@@ -92,6 +105,13 @@ function showIssues(issues) {
     line.textContent = formatIssue(issue);
     errorSummary.append(line);
   });
+}
+
+function showUnexpectedError(message) {
+  clearErrors();
+  clearStatus();
+  errorSummary.hidden = false;
+  errorSummary.textContent = message;
 }
 
 function resetInputs() {
@@ -108,6 +128,7 @@ function resetAfterSuccess() {
   preview.hidden = true;
   previewRows.replaceChildren();
   clearErrors();
+  clearStatus();
 }
 
 uploadCards().forEach((card) => {
@@ -139,60 +160,89 @@ backButton.addEventListener("click", () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await invalidatePreview();
-  clearErrors();
+  validateButton.disabled = true;
+  showStatus("正在校验，请稍候…");
 
-  const response = await fetch("/api/jobs/validate", {
-    method: "POST",
-    body: new FormData(form),
-  });
-  const body = await response.json();
+  try {
+    await invalidatePreview();
+    clearErrors();
 
-  if (!response.ok) {
-    showIssues(body.detail?.issues ?? []);
-    return;
+    const response = await fetch("/api/jobs/validate", {
+      method: "POST",
+      body: new FormData(form),
+    });
+    const body = await response.json();
+
+    if (!response.ok) {
+      showIssues(body.detail?.issues ?? []);
+      return;
+    }
+
+    activeJobId = body.job_id;
+    previewRows.replaceChildren(
+      ...body.preview.assignments.map((assignment) => {
+        const row = document.createElement("tr");
+        [
+          assignment.shipment_id,
+          assignment.carrier_number,
+          assignment.shipment_pdf,
+          assignment.shipment_txt,
+          assignment.carrier_pdf,
+          assignment.source_rows.join(", "),
+        ].forEach((value) => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+        return row;
+      }),
+    );
+
+    form.hidden = true;
+    result.hidden = true;
+    preview.hidden = false;
+    clearStatus();
+  } catch (error) {
+    showUnexpectedError(
+      `校验请求失败，请稍后重试。${error instanceof Error ? `（${error.message}）` : ""}`,
+    );
+  } finally {
+    validateButton.disabled = false;
+    if (!preview.hidden) {
+      clearStatus();
+    }
   }
-
-  activeJobId = body.job_id;
-  previewRows.replaceChildren(
-    ...body.preview.assignments.map((assignment) => {
-      const row = document.createElement("tr");
-      [
-        assignment.shipment_id,
-        assignment.carrier_number,
-        assignment.shipment_pdf,
-        assignment.shipment_txt,
-        assignment.carrier_pdf,
-        assignment.source_rows.join(", "),
-      ].forEach((value) => {
-        const cell = document.createElement("td");
-        cell.textContent = value;
-        row.append(cell);
-      });
-      return row;
-    }),
-  );
-
-  form.hidden = true;
-  result.hidden = true;
-  preview.hidden = false;
 });
 
 confirmButton.addEventListener("click", async () => {
-  const response = await fetch(`/api/jobs/${activeJobId}/generate`, {
-    method: "POST",
-  });
-  const body = await response.json();
+  confirmButton.disabled = true;
+  showStatus("正在生成 ZIP，请稍候…");
 
-  if (!response.ok) {
-    showIssues(body.detail?.issues ?? []);
+  try {
+    const response = await fetch(`/api/jobs/${activeJobId}/generate`, {
+      method: "POST",
+    });
+    const body = await response.json();
+
+    if (!response.ok) {
+      showIssues(body.detail?.issues ?? []);
+      form.hidden = false;
+      preview.hidden = true;
+      return;
+    }
+
+    resetAfterSuccess();
+    form.hidden = false;
+    result.hidden = false;
+    downloadLink.href = body.download_url;
+  } catch (error) {
+    showUnexpectedError(
+      `生成 ZIP 失败，请稍后重试。${error instanceof Error ? `（${error.message}）` : ""}`,
+    );
     form.hidden = false;
     preview.hidden = true;
-    return;
+  } finally {
+    confirmButton.disabled = false;
+    clearStatus();
   }
-
-  resetAfterSuccess();
-  form.hidden = false;
-  result.hidden = false;
-  downloadLink.href = body.download_url;
 });

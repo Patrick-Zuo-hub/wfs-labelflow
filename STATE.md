@@ -2,7 +2,7 @@
 
 ## Snapshot
 
-- Last updated: 2026-07-09 20:40:00 CST +0800
+- Last updated: 2026-07-09 21:10:00 CST +0800
 - Confidence: high for the new ZIP + Excel dispatch workflow in API and
   integration tests; medium for browser automation in this sandbox because
   Chromium launch is blocked by macOS permission constraints here.
@@ -44,6 +44,8 @@
 
 - Browser smoke verification remains blocked in this sandbox because Chromium
   cannot launch here.
+- Added a visible submit status line so ZIP + Excel validation and ZIP
+  generation no longer look like silent no-ops during async requests.
 
 ### Pending
 
@@ -86,6 +88,9 @@
   worktree.
 - 2026-07-09 — Browser smoke tests were blocked by Chromium launch permission
   errors in the Codex sandbox.
+- 2026-07-09 — Ignored macOS ZIP metadata entries such as `__MACOSX/._*` and
+  `.DS_Store`, then added explicit validation/generation status feedback in
+  the upload form.
 
 ## Evidence and deeper reading
 

@@ -157,6 +157,12 @@ td {
   margin-top: 18px;
 }
 
+.form-status {
+  margin: 8px 0 0;
+  color: #475467;
+  font-size: 14px;
+}
+
 .upload-grid .actions {
   justify-content: flex-end;
 }
